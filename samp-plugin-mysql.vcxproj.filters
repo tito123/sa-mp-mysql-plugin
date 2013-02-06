@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="SDK">
+      <UniqueIdentifier>{c071e10a-a2d4-48c3-b516-edcfb19bbb05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK\amx">
+      <UniqueIdentifier>{0c8fac1c-7e95-4fcd-9c0c-d9f1cde74e1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mysql_include">
+      <UniqueIdentifier>{e393976b-2dc2-42d9-8124-d979b19824f5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\SDK\amx\getch.h">
+      <Filter>SDK\amx</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SDK\amx\sclinux.h">
+      <Filter>SDK\amx</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SDK\amx\amx.h">
+      <Filter>SDK\amx</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SDK\plugin.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SDK\plugincommon.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\config-win.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\errmsg.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\m_ctype.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\m_string.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_alloc.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_dbug.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_getopt.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_global.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_list.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_pthread.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\my_sys.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysql.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysql_com.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysql_embed.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysql_time.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysql_version.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysqld_ername.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\mysqld_error.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\raid.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\typelib.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mysql_include\config-netware.h">
+      <Filter>mysql_include</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CAmxString.h" />
+    <ClInclude Include="src\CMutex.h" />
+    <ClInclude Include="src\CMySQLHandler.h" />
+    <ClInclude Include="src\CScripting.h" />
+    <ClInclude Include="src\main.h" />
+    <ClInclude Include="src\misc.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\SDK\amx\getch.c">
+      <Filter>SDK\amx</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SDK\amxplugin.cpp">
+      <Filter>SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CMutex.cpp" />
+    <ClCompile Include="src\CMySQLHandler.cpp" />
+    <ClCompile Include="src\CScripting.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\misc.cpp" />
+    <ClCompile Include="src\CAmxString.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\mysql_include\libmysql.def">
+      <Filter>mysql_include</Filter>
+    </None>
+  </ItemGroup>
+</Project>

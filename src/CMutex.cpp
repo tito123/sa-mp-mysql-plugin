@@ -5,20 +5,18 @@
 Mutex* Mutex::m_pInstance = NULL;
 bool Mutex::m_gEnable = false;
 
-Mutex::Mutex()
-{
-	// constructor
+Mutex::Mutex() {
+	// Constructor.
 #ifdef WIN32
-	m_mutexHandle = CreateMutex(NULL, FALSE, LPCWSTR("mysql_r7"));
+	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r8");
 #else
 	m_mutexHandle = PTHREAD_MUTEX_INITIALIZER;
-	//pthread_mutex_init(&m_mutexHandle, NULL); 
+	//pthread_mutex_init(&m_mutexHandle, NULL);
 #endif
 }
 
-Mutex::~Mutex()
-{
-	// deconstructor
+Mutex::~Mutex() {
+	// Deconstructor.
 #ifdef WIN32
 	CloseHandle(m_mutexHandle);
 #else
@@ -28,33 +26,29 @@ Mutex::~Mutex()
 	m_gEnable = false;
 }
 
-Mutex* Mutex::getInstance() 
-{
-	// based on the singleton structure
-	if(m_pInstance == NULL) {
+Mutex* Mutex::getInstance() {
+	if (m_pInstance == NULL) {
 		m_pInstance = new Mutex();
 	}
 	return m_pInstance;
 }
 
-void Mutex::_lockMutex()
-{
-	if(m_gEnable) {
-	#ifdef WIN32
+void Mutex::_lockMutex() {
+	if (m_gEnable) {
+#ifdef WIN32
 		WaitForSingleObject(m_mutexHandle, INFINITE);
-	#else
+#else
 		pthread_mutex_lock(&m_mutexHandle);
-	#endif
+#endif
 	}
 }
 
-void Mutex::_unlockMutex()
-{
-	if(m_gEnable) {
-	#ifdef WIN32
+void Mutex::_unlockMutex() {
+	if (m_gEnable) {
+#ifdef WIN32
 		ReleaseMutex(m_mutexHandle);
-	#else
+#else
 		pthread_mutex_unlock(&m_mutexHandle);
-	#endif
+#endif
 	}
 }
