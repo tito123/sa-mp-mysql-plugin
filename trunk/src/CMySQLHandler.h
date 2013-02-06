@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../main.h"
+#include "main.h"
 
 struct s_aFormat {
 	char* szCallback;
@@ -10,11 +10,11 @@ struct s_aFormat {
 	std::string arrElements[20];
 };
 
-class CMySQLHandler
-{
+class CMySQLHandler {
 public:
 	CMySQLHandler(std::string host, std::string user, std::string passw, std::string db, size_t port);
 	~CMySQLHandler();
+	static bool IsValid(size_t id);
 	int	Ping();
 	int RetrieveRow();
 	int SetCharset(std::string charsetname);
@@ -62,7 +62,7 @@ public:
 	std::string GetCharset();
 	std::string FetchFieldName(int number);
 	std::string
-			m_Hostname,m_Username,m_Password,m_Database,Delimiter,m_szResult;
+	m_Hostname, m_Username, m_Password, m_Database, Delimiter, m_szResult;
 
 	size_t m_iPort;
 

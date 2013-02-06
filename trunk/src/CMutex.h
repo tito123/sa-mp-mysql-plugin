@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../main.h"
+#include "main.h"
 
-class Mutex 
-{
+class Mutex {
 
 public:
 	static bool m_gEnable;
