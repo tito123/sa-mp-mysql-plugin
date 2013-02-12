@@ -61,12 +61,10 @@ public:
 	std::string Statistics();
 	std::string GetCharset();
 	std::string FetchFieldName(int number);
-	std::string
-	m_Hostname, m_Username, m_Password, m_Database, Delimiter, m_szResult;
+	std::string m_Hostname, m_Username, m_Password, m_Database, Delimiter, m_szResult;
 
 	size_t m_iPort;
 
-	std::stringstream m_cSStream;
 	MYSQL * m_stConnectionPtr;
 	MYSQL_ROW m_stRow;
 	MYSQL_RES * m_stResult;

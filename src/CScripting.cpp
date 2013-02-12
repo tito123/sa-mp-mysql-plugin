@@ -367,7 +367,7 @@ cell AMX_NATIVE_CALL Natives::n_mysql_format(AMX* amx, cell* params) {
 					float_len++;
 				}
 				if (precision != NULL && precision <= 6) {
-					memcpy(format_data, szFormat + (i - 1), strlen(num_str) + 3);    // Precision length + '%' + '.' + 'f'
+					memcpy(format_data, szFormat + (i - 1), strlen(num_str) + 3); // Precision length + '%' + '.' + 'f'
 				} else {
 					memcpy(format_data, "%f", 2);
 				}
@@ -534,7 +534,7 @@ cell AMX_NATIVE_CALL Natives::n_mysql_close(AMX* amx, cell* params) {
 	return 1;
 }
 
-// this function should be updated at some point
+// TODO: this function should be updated at some point
 cell AMX_NATIVE_CALL Natives::n_mysql_fetch_row_format(AMX* amx, cell* params) {
 	unsigned int cID = params[3] - 1;
 	Debug(">> mysql_fetch_row_format(Connection handle: %d)", cID + 1);
@@ -550,8 +550,7 @@ cell AMX_NATIVE_CALL Natives::n_mysql_fetch_row_format(AMX* amx, cell* params) {
 	return 0;
 }
 
-
-// this function should be updated at some point
+// TODO: this function should be updated at some point
 cell AMX_NATIVE_CALL Natives::n_mysql_fetch_field_row(AMX* amx, cell* params) {
 	unsigned int cID = params[3] - 1;
 	Mutex::getInstance()->_lockMutex();
@@ -576,7 +575,7 @@ cell AMX_NATIVE_CALL Natives::n_mysql_retrieve_row(AMX* amx, cell* params) {
 	cell ret_val = cHandle->RetrieveRow();
 	Mutex::getInstance()->_unlockMutex();
 	return ret_val;
-	//return (cell)cHandle->RetrieveRow();
+	//return (cell) cHandle->RetrieveRow();
 }
 
 cell AMX_NATIVE_CALL Natives::n_mysql_ping(AMX* amx, cell* params) {
