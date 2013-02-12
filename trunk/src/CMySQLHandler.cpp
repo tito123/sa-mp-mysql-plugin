@@ -42,16 +42,24 @@ bool CMySQLHandler::FetchField(string column) {
 		Natives::getInstance()->Debug("CMySQLHandler::FetchField(%s) - You cannot call this function now (no result).", column.c_str());
 		return 0;
 	}
+	bool bFieldExists = false;
 	for (unsigned int i = 0; i < m_dwFields; i++) {
 		if (!strcmp(column.c_str(), m_szFields[i])) {
-			m_cSStream << (m_stRow[i] ? m_stRow[i] : "NULL");
+			m_szResult = (m_stRow[i] ? m_stRow[i] : "NULL");
+			//m_cSStream << (m_stRow[i] ? m_stRow[i] : "NULL");
+			bFieldExists = true;
 			break;
 		}
 	}
-	getline(m_cSStream, m_szResult);
-	m_cSStream >> m_szResult;
+	if (!bFieldExists) {
+		Natives::getInstance()->Debug("CMySQLHandler::FetchField(\"%s\") - Field doesn't exist.", column.c_str());
+		m_szResult = "NULL";
+		return 0;
+	}
+	//getline(m_cSStream, m_szResult);
+	//m_cSStream >> m_szResult;
 	Natives::getInstance()->Debug("CMySQLHandler::FetchField(\"%s\") - %s.", column.c_str(), m_szResult.c_str());
-	m_cSStream.clear();
+	//m_cSStream.clear();
 	return 1;
 }
 
@@ -97,16 +105,15 @@ string CMySQLHandler::FetchRow() {
 	m_dwFields = mysql_num_fields(m_stResult);
 	m_stField = mysql_fetch_fields(m_stResult);
 	if ((m_stRow = mysql_fetch_row(m_stResult))) {
+		m_szResult.clear();
 		for (string::size_type i = 0; i < m_dwFields; i++) {
-			m_cSStream << (m_stRow[i] ? m_stRow[i] : "NULL") << Delimiter;
+			m_szResult.append(m_stRow[i] ? m_stRow[i] : "NULL");
+			m_szResult.append(Delimiter);
 		}
-		getline(m_cSStream, m_szResult);
-		m_cSStream >> m_szResult;
 		if (m_szResult.empty()) {
 			Natives::getInstance()->Debug("CMySQLHandler::FetchRow() - Result is empty.");
 			return string("NULL");
 		} else {
-			m_cSStream.clear();
 			m_szResult.erase(m_szResult.length() - 1, m_szResult.length());
 			Natives::getInstance()->Debug("CMySQLHandler::FetchRow() - Return: %s.", m_szResult.c_str());
 			return m_szResult;
@@ -129,9 +136,7 @@ int CMySQLHandler::RetrieveRow() {
 		Natives::getInstance()->Debug("CMySQLHandler::RetrieveRow() - You cannot call this function now (no result).");
 		return 0;
 	}
-	if (!m_dwFields) {
-		m_dwFields = mysql_num_fields(m_stResult);
-	}
+	m_dwFields = mysql_num_fields(m_stResult);
 	if ((m_stRow = mysql_fetch_row(m_stResult))) {
 		if (m_szCacheFields.empty()) {
 			char* szField;
@@ -209,19 +214,19 @@ bool CMySQLHandler::FreeResult() {
 	}
 	if (m_stResult == NULL) {
 		Natives::getInstance()->Debug("CMySQLHandler::FreeResult() - The result is already empty.");
-	} else {
-		mysql_free_result(m_stResult);
-		m_stResult = NULL;
-		m_stRow = NULL;
-		int size = m_szFields.size();
-		if (size > 0) {
-			for (unsigned int x = 0, s = size; x < s; x++) {
-				free(m_szFields[x]);
-			}
-			m_szFields.clear();
-		}
-		Natives::getInstance()->Debug("CMySQLHandler::FreeResult() - Result was successfully freed.");
+		return 0;
 	}
+	mysql_free_result(m_stResult);
+	m_stResult = NULL;
+	m_stRow = NULL;
+	int size = m_szFields.size();
+	if (size > 0) {
+		for (unsigned int x = 0, s = size; x < s; x++) {
+			free(m_szFields[x]);
+		}
+		m_szFields.clear();
+	}
+	Natives::getInstance()->Debug("CMySQLHandler::FreeResult() - Result was successfully freed.");
 	return 1;
 }
 
@@ -284,7 +289,7 @@ my_ulonglong CMySQLHandler::NumRows() {
 		return (-1);
 	}
 	if (m_stResult == NULL) {
-		Natives::getInstance()->Debug("CMySQLHandler::NumRows() - You cannot call this function now (connection is dead).");
+		Natives::getInstance()->Debug("CMySQLHandler::NumRows() - You cannot call this function now (no result).");
 		return (-1);
 	}
 	my_ulonglong ullRows = mysql_num_rows(m_stResult);
@@ -298,7 +303,7 @@ unsigned int CMySQLHandler::NumFields() {
 		return (-1);
 	}
 	if (m_stResult == NULL) {
-		Natives::getInstance()->Debug("CMySQLHandler::NumFields() - You cannot call this function now (connection is dead).");
+		Natives::getInstance()->Debug("CMySQLHandler::NumFields() - You cannot call this function now (no result).");
 		return (-1);
 	}
 	unsigned int uiNumFields = mysql_num_fields(m_stResult);

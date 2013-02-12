@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R8 (revision 14)
+ * MySQL plugin R15
  */
 
 #if defined mysql_included
@@ -42,7 +42,7 @@
 
 // ismysqlnull(string[])
 #define ismysqlnull(%1) \
-	(strcmp(%1, "NULL", false) == 0)
+	(strcmp(%1,"NULL",false)==0)
 
 // Natives.
 native enable_mutex(bool:enable);

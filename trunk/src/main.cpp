@@ -27,7 +27,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 		exit(0);
 		return 0;
 	}
-	logprintf("plugin.mysql: Version R8 (revision 14) successfully loaded.");
+	logprintf("plugin.mysql: R15 successfully loaded.");
 	Natives::getInstance()->Debug("Plugin succesfully loaded!");
 #ifdef WIN32
 	DWORD dwThreadId = 0;
@@ -93,7 +93,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
 				for (list<AMX *>::iterator a = p_Amx.begin(); a != p_Amx.end(); a++) {
 					cell amx_Address = -1, amx_Ret, *phys_addr;
 					if (amx_FindPublic(* a, tempData.szCallback, &amx_Idx) == AMX_ERR_NONE) {
-						Natives::getInstance()->Debug("%s(%s) - Callback has been called.", tempData.szCallback, tempData.szFormat);
+						Natives::getInstance()->Debug("%s(%s) - Callback is being called...", tempData.szCallback, tempData.szFormat);
 						char* revFormat = strrev(tempData.szFormat);
 						while (*revFormat) {
 							if (*revFormat == 'i' || *revFormat == 'd') {
@@ -135,6 +135,10 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
 							SQLHandle[i]->m_sCache.clear();
 							SQLHandle[i]->m_szCacheFields.clear();
 							Natives::getInstance()->Debug("ProcessTick() - The cache has been cleared.");
+						} else {
+							if (SQLHandle[i]->m_stResult != NULL) {
+								Natives::getInstance()->Debug("ProcessTick() - The result wasn't freed!");
+							}
 						}
 						free(tempData.szCallback);
 						free(tempData.szFormat);
