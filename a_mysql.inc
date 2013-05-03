@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R15
+ * MySQL plugin R18
  */
 
 #if defined mysql_included
@@ -23,6 +23,13 @@
 #define CR_COMMAND_OUT_OF_SYNC 			2014
 #define CR_SERVER_LOST_EXTENDED 		2055
 
+enum e_LogLevel {
+	LOG_NONE = 0,
+	LOG_ERROR = 1,
+	LOG_WARNING = 2,
+	LOG_DEBUG = 4
+};
+
 // mysql_fetch_row(destination)
 #define mysql_fetch_row(%1) mysql_fetch_row_format(%1,"|")
 
@@ -44,9 +51,12 @@
 #define ismysqlnull(%1) \
 	(strcmp(%1,"NULL",false)==0)
 
+
+
 // Natives.
 native enable_mutex(bool:enable);
-native mysql_debug(enable = 1);
+native mysql_debug(enable = 1); //deprecated, use mysql_log instead
+native mysql_log(loglevel);
 native mysql_connect(const host[], const user[], const database[], const password[], port = 3306);
 native mysql_reconnect(connectionHandle = 1);
 native mysql_close(connectionHandle = 1);
@@ -80,8 +90,11 @@ native cache_get_row(row, idx, destination[], connectionHandle = 1, max_len=size
 native cache_get_row_int(row, idx, connectionHandle = 1);
 native Float:cache_get_row_float(row, idx, connectionHandle = 1);
 native cache_get_field_content(row, const field_name[], destination[], connectionHandle = 1, max_len=sizeof(destination));
-native cache_get_field_int(row, const field_name[], connectionHandle = 1);
-native Float:cache_get_field_float(row, const field_name[], connectionHandle = 1);
+native cache_get_field_content_int(row, const field_name[], connectionHandle = 1);
+native Float:cache_get_field_content_float(row, const field_name[], connectionHandle = 1);
+native cache_store(connectionHandle = 1);
+native cache_free(cacheID, connectionHandle = 1);
+native cache_set_active(cacheID, connectionHandle = 1);
 
 // Forward declarations.
 forward OnQueryError(errorid, error[], callback[], query[], connectionHandle);

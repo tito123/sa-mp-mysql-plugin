@@ -3,20 +3,25 @@
 #include "CMutex.h"
 
 Mutex* Mutex::m_pInstance = NULL;
+#ifdef WIN32
+bool Mutex::m_gEnable = true;
+#else
 bool Mutex::m_gEnable = false;
+#endif
 
 Mutex::Mutex() {
-	// Constructor.
 #ifdef WIN32
-	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r8");
+	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r18");
 #else
-	m_mutexHandle = PTHREAD_MUTEX_INITIALIZER;
-	//pthread_mutex_init(&m_mutexHandle, NULL);
+	//m_mutexHandle = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutexattr_t mutexAttr;
+	pthread_mutexattr_init(&mutexAttr);
+	pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&m_mutexHandle, &mutexAttr);
 #endif
 }
 
 Mutex::~Mutex() {
-	// Deconstructor.
 #ifdef WIN32
 	CloseHandle(m_mutexHandle);
 #else
