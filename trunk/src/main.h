@@ -13,6 +13,7 @@
 #include <vector>
 #include <queue>
 #include <list>
+#include <map>
 #include <cstring>
 #include <cmath>
 #include "mysql_include/mysql.h"
@@ -20,6 +21,7 @@
 #include "stdarg.h"
 #include <complex>
 #include <algorithm>
+#include <unistd.h>
 #endif
 #include "SDK/amx/amx.h"
 #include "SDK/plugincommon.h"
@@ -47,9 +49,8 @@ typedef unsigned int UINT;
 
 #define is_string_char(c) (c == 'z' || c == 's' || c == 'e')
 
-// TODO: rewrite. if (SQLHandle[cID] == NULL) { .. }
 #define VALID_CONNECTION_HANDLE(function, id) \
 	if(!CMySQLHandler::IsValid(id)) { \
-		Debug(">> %s() - Invalid connection handle. (ID = %d).", function, id + 1); \
+		Log(LOG_ERROR, ">> %s() - Invalid connection handle. (ID = %d).", function, id); \
 		return 0; \
 	}

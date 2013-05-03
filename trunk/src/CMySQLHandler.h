@@ -10,11 +10,31 @@ struct s_aFormat {
 	std::string arrElements[20];
 };
 
+class CMySQLHandler;
+
+class CMySQLResult {
+public:
+	CMySQLResult() { }
+	void operator= (const CMySQLResult &rhs);
+	~CMySQLResult();
+
+
+	unsigned int m_dwCacheFields;
+	my_ulonglong m_dwCacheRows;
+	std::vector<std::vector<char*> > m_sCache;
+	std::vector<char*> m_szCacheFields;
+	
+};
+
+
+
 class CMySQLHandler {
 public:
 	CMySQLHandler(std::string host, std::string user, std::string passw, std::string db, size_t port);
 	~CMySQLHandler();
-	static bool IsValid(size_t id);
+
+	static bool IsValid(int id);
+
 	int	Ping();
 	int RetrieveRow();
 	int SetCharset(std::string charsetname);
@@ -25,9 +45,10 @@ public:
 	bool FreeResult();
 	bool StoreResult();
 	bool FetchField(std::string column);
+
 	bool m_bIsConnected;
-	bool m_bNonThreadedQuery;
 	bool m_bQueryProcessing;
+
 	my_ulonglong InsertId();
 	my_ulonglong NumRows();
 	my_ulonglong AffectedRows();
@@ -39,6 +60,8 @@ public:
 
 	unsigned int m_dwError, m_dwFields;
 
+	//void operator= (const CMySQLResult &res);
+
 	struct errorInfo {
 		std::string m_szQuery;
 		std::string m_szError;
@@ -47,15 +70,16 @@ public:
 	};
 
 	// cache variables
-	unsigned int m_dwCacheFields;
-	my_ulonglong m_dwCacheRows;
-	std::vector<std::vector<char*> > m_sCache;
-	std::vector<char*> m_szCacheFields;
+	std::map<int, CMySQLResult*> m_mpStoredCache;
+	CMySQLResult *m_pActiveCache;
+	int m_bActiveCacheStored; //ID of stored cache; 0 if not stored yet
+
+
 	std::vector<char*> m_szFields;
 
-	std::queue<s_aFormat> m_sQueryData;
-	std::queue<s_aFormat> m_sCallbackData;
-	std::queue<errorInfo> errorCallback;
+	std::queue<s_aFormat> m_sQueryData; //?????
+	std::queue<s_aFormat> m_sCallbackData; //????
+	std::queue<errorInfo> errorCallback; // ?????
 
 	std::string FetchRow();
 	std::string Statistics();
@@ -71,4 +95,4 @@ public:
 	MYSQL_FIELD * m_stField;
 };
 
-extern std::vector<CMySQLHandler *> SQLHandle;
+extern std::map<int, CMySQLHandler *> SQLHandle;
