@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R18
+ * MySQL plugin R20
  */
 
 #if defined mysql_included
@@ -66,7 +66,7 @@ native mysql_reload(connectionHandle = 1);
 native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_set_charset(charset[], connectionHandle = 1);
 native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
-native mysql_format(connectionHandle, output[], format[], {Float,_}:...);
+native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_warning_count(connectionHandle = 1);
 native mysql_errno(connectionHandle = 1);
 native mysql_function_query(connectionHandle, query[], bool:cache, callback[], format[], {Float,_}:...);
@@ -92,8 +92,8 @@ native Float:cache_get_row_float(row, idx, connectionHandle = 1);
 native cache_get_field_content(row, const field_name[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native cache_get_field_content_int(row, const field_name[], connectionHandle = 1);
 native Float:cache_get_field_content_float(row, const field_name[], connectionHandle = 1);
-native cache_store(connectionHandle = 1);
-native cache_free(cacheID, connectionHandle = 1);
+native cache_save(connectionHandle = 1);
+native cache_delete(cacheID, connectionHandle = 1);
 native cache_set_active(cacheID, connectionHandle = 1);
 
 // Forward declarations.

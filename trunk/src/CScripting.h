@@ -42,8 +42,8 @@ public:
 	static cell AMX_NATIVE_CALL n_cache_get_field_content_float(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_enable_mutex(AMX* amx, cell* params);
 
-	static cell AMX_NATIVE_CALL n_cache_store(AMX* amx, cell* params);
-	static cell AMX_NATIVE_CALL n_cache_free(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_cache_save(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_cache_delete(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_cache_set_active(AMX* amx, cell* params);
 	// Other functions.
 	static void Log(unsigned int level, char* text, ...);

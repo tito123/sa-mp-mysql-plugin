@@ -27,7 +27,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 		exit(0);
 		return 0;
 	}
-	logprintf("plugin.mysql: R17 successfully loaded.");
+	logprintf("plugin.mysql: R20 successfully loaded.");
 	Natives::Log(LOG_DEBUG, "Plugin succesfully loaded!");
 #ifdef WIN32
 	DWORD dwThreadId = 0;
@@ -57,9 +57,10 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload() {
 }
 
 PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
+	Mutex::getInstance()->_lockMutex();
 	if (SQLHandle.size() > 0) {
 		for (map<int, CMySQLHandler *>::iterator it = SQLHandle.begin(), end = SQLHandle.end(); it != end; it++) {
-			Mutex::getInstance()->_lockMutex();
+			
 
 			CMySQLHandler *cHandle = it->second;
 
@@ -130,9 +131,9 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
 						} else {
 							if (cHandle->m_stResult != NULL) {
 								Natives::Log(LOG_ERROR, "ProcessTick() - The result wasn't freed!");
-								/*TODO: free result automatically?
-								Natives::Log(LOG_WARNING, "ProcessTick() - The result wasn't free'd! Freeing automatically...");
-								cHandle->FreeResult();*/
+								//TODO: free result automatically?
+								//Natives::Log(LOG_WARNING, "ProcessTick() - The result wasn't free'd! Freeing automatically...");
+								//cHandle->FreeResult();
 							}
 						}
 						free(tempData.szCallback);
@@ -143,9 +144,10 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
 				cHandle->m_sCallbackData.pop();
 				cHandle->m_bQueryProcessing = false;
 			}
-			Mutex::getInstance()->_unlockMutex();
+			
 		}
 	}
+	Mutex::getInstance()->_unlockMutex();
 }
 
 #ifdef WIN32 
@@ -289,8 +291,8 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 	{"cache_get_field_content",			Natives::getInstance()->n_cache_get_field_content},
 	{"cache_get_field_content_int",		Natives::getInstance()->n_cache_get_field_content_int},
 	{"cache_get_field_content_float",	Natives::getInstance()->n_cache_get_field_content_float},
-	{"cache_store",						Natives::getInstance()->n_cache_store},
-	{"cache_free",						Natives::getInstance()->n_cache_free},
+	{"cache_save",						Natives::getInstance()->n_cache_save},
+	{"cache_delete",					Natives::getInstance()->n_cache_delete},
 	{"cache_set_active",				Natives::getInstance()->n_cache_set_active},
 	{NULL, NULL}
 };
