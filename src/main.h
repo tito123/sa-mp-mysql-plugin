@@ -49,8 +49,5 @@ typedef unsigned int UINT;
 
 #define is_string_char(c) (c == 'z' || c == 's' || c == 'e')
 
-#define VALID_CONNECTION_HANDLE(function, id) \
-	if(!CMySQLHandler::IsValid(id)) { \
-		Log(LOG_ERROR, ">> %s() - Invalid connection handle. (ID = %d).", function, id); \
-		return 0; \
-	}
+#define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
+	Log(LOG_ERROR, ">> %s() - Invalid connection handle. (ID = %d).", function, id);

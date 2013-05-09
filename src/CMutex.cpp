@@ -11,7 +11,7 @@ bool Mutex::m_gEnable = false;
 
 Mutex::Mutex() {
 #ifdef WIN32
-	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r18");
+	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r20");
 #else
 	//m_mutexHandle = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutexattr_t mutexAttr;

@@ -30,14 +30,16 @@ CMySQLHandler::~CMySQLHandler() {
 }
 
 bool CMySQLHandler::IsValid(int id) {
-	if(SQLHandle.find(id) == SQLHandle.end())
+	/*if(SQLHandle.find(id) == SQLHandle.end())
 		return false;
 	try { 
 		if(SQLHandle.at(id) == NULL)
 			return false;
 	}
 	catch(std::out_of_range oor)
-	{ oor.what(); return false; }
+	{ oor.what(); return false; }*/
+	if(SQLHandle.find(id) == SQLHandle.end() || SQLHandle.at(id) == NULL)
+		return false;
 	return true;
 }
 
@@ -131,7 +133,6 @@ string CMySQLHandler::FetchFieldName(int number) {
 	}
 	m_stField = mysql_fetch_field_direct(m_stResult, number);
 	string szFieldname(m_stField->name);
-	free(m_stField);
 	Natives::Log(LOG_DEBUG, "CMySQLHandler::FetchFieldName(%d) - Returned: %s", number, szFieldname.c_str());
 	return szFieldname;
 }
@@ -308,7 +309,7 @@ my_ulonglong CMySQLHandler::AffectedRows() {
 		return 0;
 	}
 	my_ulonglong ullAffected = mysql_affected_rows(m_stConnectionPtr);
-	Natives::Log(LOG_DEBUG, "CMySQLHandler::NumRows() - Returned %d affected rows(s)", ullAffected);
+	Natives::Log(LOG_DEBUG, "CMySQLHandler::AffectedRows() - Returned %d affected rows(s)", ullAffected);
 	return ullAffected;
 }
 

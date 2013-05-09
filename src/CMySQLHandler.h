@@ -60,8 +60,7 @@ public:
 
 	unsigned int m_dwError, m_dwFields;
 
-	//void operator= (const CMySQLResult &res);
-
+	
 	struct errorInfo {
 		std::string m_szQuery;
 		std::string m_szError;
@@ -77,9 +76,9 @@ public:
 
 	std::vector<char*> m_szFields;
 
-	std::queue<s_aFormat> m_sQueryData; //?????
-	std::queue<s_aFormat> m_sCallbackData; //????
-	std::queue<errorInfo> errorCallback; // ?????
+	std::queue<s_aFormat> m_sQueryData;
+	std::queue<s_aFormat> m_sCallbackData;
+	std::queue<errorInfo> errorCallback;
 
 	std::string FetchRow();
 	std::string Statistics();
