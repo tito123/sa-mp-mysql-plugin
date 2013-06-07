@@ -33,6 +33,60 @@ cell AMX_NATIVE_CALL Native::mysql_mt(AMX* amx, cell* params) {
 	return 1;
 }
 
+
+
+//native cache_affected_rows(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::cache_affected_rows(AMX* amx, cell* params) {
+	unsigned int cID = params[1];
+	Log(LOG_DEBUG, ">> cache_affected_rows(Connection handle: %d)", cID);
+	
+	if(!CMySQLHandle::IsValid(cID)) 
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_affected_rows", cID), 0;
+
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) { 
+		Log(LOG_WARNING, ">> cache_affected_rows(...) - There is no active cache.");
+		return 0;
+	}
+	
+	return (cell)Result->AffectedRows();
+}
+
+//native cache_warning_count(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::cache_warning_count(AMX* amx, cell* params) {
+	unsigned int cID = params[1];
+	Log(LOG_DEBUG, ">> cache_warning_count(Connection handle: %d)", cID);
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_warning_count", cID), 0;
+	
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) { 
+		Log(LOG_WARNING, ">> cache_warning_count(...) - There is no active cache.");
+		return 0;
+	}
+	
+	return (cell)Result->GetWarningCount();
+}
+
+//native cache_insert_id(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::cache_insert_id(AMX* amx, cell* params) {
+	unsigned int cID = params[1];
+	Log(LOG_DEBUG, ">> cache_insert_id(Connection handle: %d)", cID);
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_insert_id", cID), 0;
+
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) { 
+		Log(LOG_WARNING, ">> cache_insert_id(...) - There is no active cache.");
+		return 0;
+	}
+	
+	return (cell)Result->InsertID();
+}
+
+
 // native cache_save(connectionHandle = 1);
 cell AMX_NATIVE_CALL Native::cache_save(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
@@ -150,9 +204,7 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 	string RowData;
 	Result->GetRowData(params[1], params[2], RowData);
 	
-	stringstream ConvertBuf (RowData);
-	ConvertBuf >> ReturnVal;
-	if(ConvertBuf.fail()) {
+	if(sscanf(RowData.c_str(), "%d", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_row_int(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0;
 	}
@@ -178,9 +230,8 @@ cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 	string RowData;
 	Result->GetRowData(params[1], params[2], RowData);
 	
-	stringstream ConvertBuf (RowData);
-	ConvertBuf >> ReturnVal;
-	if(ConvertBuf.fail()) {
+	
+	if(sscanf(RowData.c_str(), "%f", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_row_float(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0.0f;
 	}
@@ -234,9 +285,8 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 	
 	AMX_H->GetString(amx, params[2], FieldName);
 	Result->GetRowDataByName(params[1], FieldName, FieldData);
-	stringstream ConvertBuf (FieldData);
-	ConvertBuf >> ReturnVal;
-	if(ConvertBuf.fail()) {
+
+	if(sscanf(FieldData.c_str(), "%d", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_field_content_int(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0;
 	}
@@ -267,13 +317,11 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 	
 	AMX_H->GetString(amx, params[2], FieldName);
 	Result->GetRowDataByName(params[1], FieldName, FieldData);
-	stringstream ConvertBuf (FieldData);
-	ConvertBuf >> ReturnVal;
-	if(ConvertBuf.fail()) {
+
+	if(sscanf(FieldData.c_str(), "%f", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_field_content_float(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0.0f;
 	}
-	
 	return amx_ftoc(ReturnVal);
 }
 
@@ -335,7 +383,8 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 	AMX_H->GetString(amx, params[3], Callback->Name);
 	
 	Callback->ParamFormat = ParamFormat;
-	Query->ConnHandle = cHandle;
+	Query->ConnHandle = cHandle; 
+	Query->ConnPtr = cHandle->GetMySQLPointer();
 	Query->Callback = Callback;
 	
 	
@@ -370,6 +419,20 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 	
 
 	CMySQLQuery::PushQuery(Query); 
+	return 1;
+}
+
+//native mysql_function_query(conhandle, query[], bool:cache, callback[], format[], {Float,_}:...);
+cell AMX_NATIVE_CALL Native::mysql_function_query(AMX* amx, cell* params) {
+	cell *NewParams = new cell[params[0]];
+	NewParams[0] = params[0]-1;
+	NewParams[1] = params[1];
+	NewParams[2] = params[2];
+	NewParams[3] = params[4];
+	NewParams[4] = params[5];
+	for(int i=6; i < params[0]; ++i)
+		NewParams[i-1] = params[i];
+	mysql_tquery(amx, NewParams);
 	return 1;
 }
 
@@ -550,20 +613,6 @@ cell AMX_NATIVE_CALL Native::mysql_get_charset(AMX* amx, cell* params) {
 	return 1;
 }
 
-//native mysql_insert_id(connectionHandle = 1);
-cell AMX_NATIVE_CALL Native::mysql_insert_id(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_insert_id(Connection handle: %d)", cID);
-	
-	if(!CMySQLHandle::IsValid(cID))
-		return ERROR_INVALID_CONNECTION_HANDLE("mysql_insert_id", cID), 0;
-
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	cell InsertID = (cell)mysql_insert_id(ConnPtr);
-	
-	return InsertID;
-}
-
 //native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 cell AMX_NATIVE_CALL Native::mysql_real_escape_string(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
@@ -578,30 +627,15 @@ cell AMX_NATIVE_CALL Native::mysql_real_escape_string(AMX* amx, cell* params) {
 	string Source;
 	AMX_H->GetString(amx, params[1], Source);
 	char *StrBuffer = new char[Source.length()*2+1];
-	memset(StrBuffer, '\0', DestLength + 1);
+	memset(StrBuffer, '\0', Source.length()*2 + 1);
 
 	cell StringLen = (cell)mysql_real_escape_string(ConnPtr, StrBuffer, Source.c_str(), Source.length());
-	AMX_H->SetString(amx, params[2], StrBuffer, params[4]);
+	string EscapedString(StrBuffer);
+	AMX_H->SetString(amx, params[2], EscapedString, params[4]);
 	
-	delete[] StrBuffer;
-	return StringLen;
+	delete[] StrBuffer; 
+	return StringLen; 
 }
-
-/*
-//native mysql_field_count(connectionHandle = 1);
-cell AMX_NATIVE_CALL Native::mysql_field_count(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_field_count(Connection handle: %d)", cID);
-	
-	if(!CMySQLHandle::IsValid(cID))
-		return ERROR_INVALID_CONNECTION_HANDLE("mysql_field_count", cID), 0;
-	
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	cell ret_val = mysql_field_count(ConnPtr);
-	
-	return ret_val;
-}*/
-
 
 cell AMX_NATIVE_CALL Native::mysql_close(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
@@ -612,19 +646,6 @@ cell AMX_NATIVE_CALL Native::mysql_close(AMX* amx, cell* params) {
 	
 	CMySQLQuery::PushDisconnect(CMySQLHandle::GetHandle(cID));
 	return 1;
-}
-
-
-//native mysql_affected_rows(connectionHandle = 1);
-cell AMX_NATIVE_CALL Native::mysql_affected_rows(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_affected_rows(Connection handle: %d)", cID);
-	
-	if(!CMySQLHandle::IsValid(cID)) 
-		return ERROR_INVALID_CONNECTION_HANDLE("mysql_affected_rows", cID), 0;
-
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	return (cell)mysql_affected_rows(ConnPtr);
 }
 
 //native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));

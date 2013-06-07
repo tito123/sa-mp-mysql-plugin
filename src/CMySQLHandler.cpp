@@ -61,6 +61,9 @@ CMySQLResult::CMySQLResult() {
 	m_Rows = 0; 
 	m_Data.clear();
 	m_FieldNames.clear();
+	m_InsertID = 0;
+	m_AffectedRows = 0;
+	m_WarningCount = 0;
 }
 
 CMySQLResult::~CMySQLResult() {
@@ -279,23 +282,24 @@ CMySQLQuery::CMySQLQuery() {
 	Callback = NULL;
 }
 
-void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
-	CMySQLResult *Result = NULL;
+//void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
+void CMySQLQuery::ExecuteT() {
+	Result = NULL;
 
-	if(connptr != NULL) {
+	if(ConnPtr != NULL) {
 
 		MySQLMutex.Lock();
 		
-		int QueryErrorID = mysql_real_query(connptr, query->Query.c_str(), query->Query.length());
+		int QueryErrorID = mysql_real_query(ConnPtr, Query.c_str(), Query.length());
 		if (QueryErrorID == 0) {
 
-			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Query was successful.", query->Callback->Name.c_str());
+			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Query was successful.", Callback->Name.c_str());
 
 			MYSQL_RES *SQLResult;
 			MYSQL_FIELD * SQLField;
 			MYSQL_ROW SQLRow;
 
-			SQLResult = mysql_store_result(connptr);
+			SQLResult = mysql_store_result(ConnPtr);
 			MySQLMutex.Unlock();
 
 			if ( SQLResult != NULL) {
@@ -304,6 +308,7 @@ void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
 				Result->m_Rows = mysql_num_rows(SQLResult);
 				Result->m_Fields = mysql_num_fields(SQLResult);
 				Result->m_Data.reserve((unsigned int)Result->m_Rows+1);
+				Result->m_WarningCount = mysql_warning_count(ConnPtr);
 
 				char *szField = NULL;
 				while ((SQLField = mysql_fetch_field(SQLResult))) {
@@ -327,7 +332,7 @@ void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
 							szCurrentRow = new char[lengths[a]+1];
 							memset(szCurrentRow, '\0', (lengths[a] + 1));
 							strcpy(szCurrentRow, SQLRow[a]);
-						}
+						} 
 						tempVector->push_back(szCurrentRow);
 					}
 					Result->m_Data.push_back(tempVector);
@@ -335,30 +340,37 @@ void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
 
 				mysql_free_result(SQLResult);
 			}
+			else if(mysql_field_count(ConnPtr) == 0) { //query is non-SELECT query
+				Result = new CMySQLResult;
+				
+				Result->m_WarningCount = mysql_warning_count(ConnPtr);
+				Result->m_AffectedRows = mysql_affected_rows(ConnPtr);
+				Result->m_InsertID = mysql_insert_id(ConnPtr);
+			}
 			
 			//forward Query to Callback handler
-			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Data being passed to ProcessCallbacks().", query->Callback->Name.c_str());
-			query->Result = Result;
-			CCallback::AddQueryToQueue(query);
+			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Data being passed to ProcessCallbacks().", Callback->Name.c_str());
+			Result = Result;
+			CCallback::AddQueryToQueue(this);
 		}
 		else { //mysql_real_query failed
 			
 			MySQLMutex.Unlock();
 			
-			int ErrorID = mysql_errno(connptr);
-			if(ErrorID != 1065 && query->Callback != NULL) {
-				const char *ErrorString = mysql_error(connptr);
+			int ErrorID = mysql_errno(ConnPtr);
+			if(ErrorID != 1065 && Callback != NULL) {
+				const char *ErrorString = mysql_error(ConnPtr);
 						
-				Native::Log(LOG_ERROR, "ExecuteT(%s) - %s (error ID: %d)", query->Callback->Name.c_str(), ErrorString, ErrorID);
-				Native::Log(LOG_DEBUG, "ExecuteT(%s) - Error will be triggered to OnQueryError().", query->Callback->Name.c_str());
+				Native::Log(LOG_ERROR, "ExecuteT(%s) - %s (error ID: %d)", Callback->Name.c_str(), ErrorString, ErrorID);
+				Native::Log(LOG_DEBUG, "ExecuteT(%s) - Error will be triggered to OnQueryError().", Callback->Name.c_str());
 
-				if(ErrorID == 2006) {
+				if(ErrorID == 2006) { 
 					Native::Log(LOG_WARNING, "ExecuteT() - Lost connection, reconnecting to the MySQL-server in the background thread.");
 					MYSQL_RES *SQLRes;
-					if ((SQLRes = mysql_store_result(connptr)) != NULL)  {
+					if ((SQLRes = mysql_store_result(ConnPtr)) != NULL)  {
 							mysql_free_result(SQLRes);
 					}
-					PushReconnect(query->ConnHandle);
+					PushReconnect(ConnHandle);
 				}
 
 				//forward OnQueryError(errorid, error[], callback[], query[], connectionHandle);
@@ -369,23 +381,23 @@ void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
 				ConvBuf << ErrorID;
 				ErrorCallback->Parameters.push(ConvBuf.str());
 				ErrorCallback->Parameters.push(ErrorString);
-				ErrorCallback->Parameters.push(query->Callback->Name);
-				ErrorCallback->Parameters.push(query->Query);
-				ConvBuf2 << query->ConnHandle->GetID();
+				ErrorCallback->Parameters.push(Callback->Name);
+				ErrorCallback->Parameters.push(Query);
+				ConvBuf2 << ConnHandle->GetID();
 				ErrorCallback->Parameters.push(ConvBuf2.str());
 
 				CMySQLQuery *ErrorCBQuery = new CMySQLQuery;
 				ErrorCBQuery->Callback = ErrorCallback;
 				ErrorCBQuery->Result = NULL;
-				ErrorCBQuery->ConnHandle = query->ConnHandle;
+				ErrorCBQuery->ConnHandle = ConnHandle;
 				CCallback::AddQueryToQueue(ErrorCBQuery);
 
 				//push query again into queue
 				/*if(ErrorID != 1064) //mistake in query syntax
 					CMySQLQuery::PushQuery(query);
 				else*/
-				delete query;
-				query = NULL;
+				//delete this;
+				//query = NULL;
 			}
 		}
 	}
