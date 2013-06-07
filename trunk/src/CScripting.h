@@ -19,15 +19,13 @@ namespace Native {
 	cell AMX_NATIVE_CALL mysql_real_escape_string(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_format(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_tquery(AMX* amx, cell* params);
+	cell AMX_NATIVE_CALL mysql_function_query(AMX* amx, cell* params); //wrapper for mysql_tquery
 	
 	
 	//ASync functions
 	cell AMX_NATIVE_CALL mysql_stat(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_set_charset(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_get_charset(AMX* amx, cell* params);
-	cell AMX_NATIVE_CALL mysql_affected_rows(AMX* amx, cell* params);
-	cell AMX_NATIVE_CALL mysql_insert_id(AMX* amx, cell* params);
-	//cell AMX_NATIVE_CALL mysql_field_count(AMX* amx, cell* params);
 	
 
 	//Cache functions
@@ -43,6 +41,9 @@ namespace Native {
 	cell AMX_NATIVE_CALL cache_delete(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL cache_set_active(AMX* amx, cell* params);
 	
+	cell AMX_NATIVE_CALL cache_affected_rows(AMX* amx, cell* params);
+	cell AMX_NATIVE_CALL cache_insert_id(AMX* amx, cell* params);
+	cell AMX_NATIVE_CALL cache_warning_count(AMX* amx, cell* params);
 
 	//Other functions
 	void Log(unsigned int level, char* text, ...);

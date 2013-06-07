@@ -8,6 +8,8 @@
 #include <cstring>
 
 #include "boost/thread.hpp"
+#include "boost/threadpool.hpp"
+
 
 
 #ifdef _WIN32
@@ -25,13 +27,16 @@
  
 
 list<AMX *> p_Amx;
-void **ppPluginData;
+void **ppPluginData; 
 extern void	*pAMXFunctions;
 extern logprintf_t logprintf;
 
 bool 
 	MultiThreading = false,
 	ThreadRunning = true;
+
+
+boost::threadpool::pool QueryTPool(1);
 
 
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports() {
@@ -42,7 +47,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
 	logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 	
-	logprintf(" >> plugin.mysql: R21 successfully loaded.");
+	logprintf(" >> plugin.mysql: R23 successfully loaded.");
 	Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
 
 
@@ -80,6 +85,7 @@ void CMySQLQuery::ProcessQueryT()
 	
 	while(ThreadRunning) {
 
+		//Connect queue
 		CMySQLHandle::SQLHandleMutex.Lock();
 		CMySQLHandle *OldHandle = NULL;
 		while(!ReconnectQueue.empty()) {
@@ -92,6 +98,7 @@ void CMySQLQuery::ProcessQueryT()
 			OldHandle = Handle;
 		}
 		
+		//reconnect queue
 		OldHandle = NULL;
 		while(!ConnectQueue.empty()) {
 			CMySQLHandle *Handle = ConnectQueue.front();
@@ -103,57 +110,25 @@ void CMySQLQuery::ProcessQueryT()
 		}
 		CMySQLHandle::SQLHandleMutex.Unlock();
 
+		//executing queries
 		CMySQLQuery *Query = NULL;
 		while( (Query = GetNextQuery()) != NULL) {
-			MYSQL *ConnectionPtr = Query->ConnHandle->GetMySQLPointer();
-			
-
-			if(MultiThreading == true) {
-				int tmpQueryCount = 0;
-
-				MySQLMutex.Lock();
-				QueryCounter++; 
-				tmpQueryCount = QueryCounter;
-				MySQLMutex.Unlock();
-
-				while(tmpQueryCount >= 6) {
-					SLEEP(50);
-
-					MySQLMutex.Lock();
-					tmpQueryCount = QueryCounter;
-					MySQLMutex.Unlock();
-				}
-
-
-				boost::thread ExecuteQueryThread(ExecuteT, Query, ConnectionPtr);
-				ExecuteQueryThread.detach();
-			}
+			if(MultiThreading == true)
+				QueryTPool.schedule(boost::bind(&ExecuteT, Query));
 			else
-				ExecuteT(Query, ConnectionPtr);
+				Query->ExecuteT();
 		}
 
-		if(MultiThreading == true) {
-			int tmpQueryCount = 0;
-			do {
-
-				CMySQLQuery::MySQLMutex.Lock();
-				tmpQueryCount = CMySQLQuery::QueryCounter;
-				CMySQLQuery::MySQLMutex.Unlock();
-
-				if(tmpQueryCount != 0) 
-					SLEEP(20);
-					
-			} while(tmpQueryCount != 0);
-		}
-
-		//check if disconnect is needed
+		if(MultiThreading == true)
+			QueryTPool.wait(0);
+		
+		//disconnect queue
 		CMySQLHandle::SQLHandleMutex.Lock();
 		CCallback::CallbackMutex.Lock();
 		while(!DisconnectQueue.empty()) {
 			CMySQLHandle *Handle = DisconnectQueue.front();
 			DisconnectQueue.pop();
 
-			
 
 			Handle->DisconnectT();
 			CMySQLHandle::SQLHandle.erase(Handle->m_CID);
@@ -168,25 +143,14 @@ void CMySQLQuery::ProcessQueryT()
 
 	//Delete/unload all things
 	if(MultiThreading == true) {
-		int tmpQueryCount = 0;
-		bool InfoMsgSended = false;
-		do {
-
-			CMySQLQuery::MySQLMutex.Lock();
-			tmpQueryCount = CMySQLQuery::QueryCounter;
-			CMySQLQuery::MySQLMutex.Unlock();
-
-			if(tmpQueryCount != 0) {
-				if(InfoMsgSended == false) {
-					logprintf("plugin.mysql: There are still %d queries left, waiting for execution...", tmpQueryCount);
-					InfoMsgSended = true;
-				}
-				SLEEP(100);
-			}
-		} while(tmpQueryCount != 0);
-		if(InfoMsgSended == true)
+		int PendingQueries = QueryTPool.pending() + QueryTPool.active();
+		if(PendingQueries > 0) {
+			logprintf("plugin.mysql: There are still %d queries left, waiting for execution...", PendingQueries);
+			QueryTPool.wait(0);
 			logprintf("plugin.mysql: All queries were executed.");
+		}
 	}
+
 
 	CMySQLQuery::QueryMutex.Lock();
 	CMySQLHandle::SQLHandleMutex.Lock();
@@ -230,13 +194,11 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 	{"mysql_real_escape_string",		Native::mysql_real_escape_string},
 	{"mysql_format",					Native::mysql_format},
 	{"mysql_tquery",					Native::mysql_tquery},
+	{"mysql_function_query",			Native::mysql_function_query},
 
 	{"mysql_stat",						Native::mysql_stat},
 	{"mysql_get_charset",				Native::mysql_get_charset},
 	{"mysql_set_charset",				Native::mysql_set_charset},
-	{"mysql_affected_rows",				Native::mysql_affected_rows},
-	{"mysql_insert_id",					Native::mysql_insert_id},
-	//{"mysql_field_count",				Native::mysql_field_count},
 
 	{"cache_get_data",					Native::cache_get_data},
 	{"cache_get_field",					Native::cache_get_field},
@@ -249,6 +211,9 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 	{"cache_save",						Native::cache_save},
 	{"cache_delete",					Native::cache_delete},
 	{"cache_set_active",				Native::cache_set_active},
+	{"cache_affected_rows",				Native::cache_affected_rows},
+	{"cache_insert_id",					Native::cache_insert_id},
+	{"cache_warning_count",				Native::cache_warning_count},
 	{NULL, NULL}
 };
 
@@ -266,3 +231,4 @@ PLUGIN_EXPORT int PLUGIN_CALL AmxUnload(AMX *amx) {
 	}
 	return AMX_ERR_NONE;
 }
+

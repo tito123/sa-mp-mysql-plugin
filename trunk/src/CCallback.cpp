@@ -66,6 +66,6 @@ void CCallback::ProcessCallbacks() {
 			}
 		}
 		delete Callback;
-		delete Query;
+		delete Query; 
 	}
 }

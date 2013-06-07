@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R21
+ * MySQL plugin R23
  */
 
 #if defined mysql_included
@@ -30,8 +30,10 @@ enum e_LogLevel {
 	LOG_DEBUG = 4
 };
 
-//mysql_function_query
-#define mysql_function_query(%1,%2,%3,%4,%5,%6) mysql_tquery(%1,%2,%4,%5,%6)
+
+#define mysql_insert_id cache_insert_id
+#define mysql_affected_rows cache_affected_rows
+#define mysql_warning_count cache_warning_count
 
 // mysql_fetch_row(destination)
 #define mysql_fetch_row(%1) mysql_fetch_row_format(%1,"|")
@@ -58,12 +60,12 @@ native mysql_reconnect(connectionHandle = 1);
 native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_tquery(connectionHandle, query[], callback[], format[], {Float,_}:...);
+native mysql_function_query(connectionHandle, query[], bool:cache, callback[], format[], {Float,_}:...);
 
 native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_set_charset(charset[], connectionHandle = 1);
-native mysql_affected_rows(connectionHandle = 1);
-native mysql_insert_id(connectionHandle = 1);
+
 
 
 // Cache functions.
@@ -78,6 +80,11 @@ native Float:cache_get_field_content_float(row, const field_name[], connectionHa
 native cache_save(connectionHandle = 1);
 native cache_delete(cacheID, connectionHandle = 1);
 native cache_set_active(cacheID, connectionHandle = 1);
+
+native cache_affected_rows(connectionHandle = 1);
+native cache_insert_id(connectionHandle = 1);
+native cache_warning_count(connectionHandle = 1);
+
 
 stock mysql_reload(connectionHandle = 1) {
 	mysql_tquery(connectionHandle, "FLUSH PRIVILEGES", "", "");

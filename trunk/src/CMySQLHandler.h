@@ -46,11 +46,29 @@ public:
 	void GetFieldName(unsigned int idx, string &dest);
 	void GetRowData(unsigned int row, unsigned int fieldidx, string &dest);
 	void GetRowDataByName(unsigned int row, string field, string &dest);
+
+	my_ulonglong InsertID() {
+		return m_InsertID;
+	}
+
+	my_ulonglong AffectedRows() {
+		return m_AffectedRows;
+	}
+
+	unsigned int GetWarningCount() {
+		return m_WarningCount;
+	}
+
 private:
 	unsigned int m_Fields;
 	my_ulonglong m_Rows;
+
 	vector<vector<char*>* > m_Data;
 	vector<char*> m_FieldNames;
+
+	my_ulonglong m_InsertID, m_AffectedRows;
+
+	unsigned int m_WarningCount;
 };
 
 
@@ -140,6 +158,7 @@ public:
 	string Query;
 	
 	CMySQLHandle *ConnHandle;
+	MYSQL *ConnPtr;
 	CMySQLResult *Result;
 	CCallback *Callback;
 
@@ -160,7 +179,10 @@ public:
 		return Query;
 	}
 
-	static void ExecuteT(CMySQLQuery *query, MYSQL *connptr);
+
+	//static void ExecuteT(CMySQLQuery *query, MYSQL *connptr);
+	//void operator()();
+	void ExecuteT();
 
 
 	static void PushConnect(CMySQLHandle *handle) {
@@ -189,6 +211,5 @@ private:
 	static queue <CMySQLHandle*> DisconnectQueue;
 	static queue <CMySQLHandle*> ReconnectQueue;
 };
-
 
 #endif
