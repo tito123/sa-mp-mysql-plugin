@@ -20,6 +20,7 @@
  *
  *  Version: $Id: amx.h,v 1.5 2006/03/26 16:56:15 spookie Exp $
  */
+#define SN_TARGET_PS2
 
 #if defined FREEBSD && !defined __FreeBSD__
   #define __FreeBSD__

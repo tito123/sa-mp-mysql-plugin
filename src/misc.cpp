@@ -2,6 +2,10 @@
 
 #include "misc.h"
 
+#include <cmath>
+#include <complex>
+#include <algorithm>
+
 #if defined(LINUX) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__OpenBSD__)
 // http://www.jb.man.ac.uk/~slowe/cpp/itoa.html
 char* itoa(int value, char* result, int base) {
@@ -22,20 +26,5 @@ char* itoa(int value, char* result, int base) {
 	std::reverse(result, out);
 	*out = 0;
 	return result;
-}
-
-char* strrev(char* s) {
-	char  c;
-	char* s0 = s - 1;
-	char* s1 = s;
-	while (*s1) {
-		++s1;
-	}
-	while (s1-- > ++s0) {
-		c = *s0;
-		*s0 = *s1;
-		*s1 =  c;
-	}
-	return s;
 }
 #endif

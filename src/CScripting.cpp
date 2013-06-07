@@ -1,538 +1,394 @@
 #pragma once
 
 #include "CScripting.h"
+#include "CMySQLHandler.h"
+#include "CAmxString.h"
+
 #include "misc.h"
 
-map<int, CMySQLHandler *> SQLHandle;
+#include <stdarg.h>
+#include "malloc.h"
+#include <cmath>
+
+
+map<int, CMySQLHandle*> CMySQLHandle::SQLHandle;
+
 StrAmx *AMX_H;
-
 logprintf_t logprintf;
-extern list<AMX *> p_Amx;
-Natives* Natives::m_pInstance = NULL;
 
-Natives::Natives() {
-	m_DebugLevel = LOG_ERROR | LOG_WARNING;
-}
 
-Natives::~Natives() {
-	// deconstructor
-}
+unsigned int LogLevel = LOG_ERROR | LOG_WARNING;
+static const char LogFileName[] = "mysql_log.txt";
 
-Natives* Natives::getInstance() {
-	// based on the singleton structure
-	if (m_pInstance == NULL) {
-		m_pInstance = new Natives();
-	}
-	return m_pInstance;
-}
 
-// native enable_mutex(bool:enable); is disabled by default
-cell AMX_NATIVE_CALL Natives::n_enable_mutex(AMX* amx, cell* params) {
-	if (params[1]) {
-		Mutex::getInstance()->m_gEnable = true;
-	} else {
-		Mutex::getInstance()->m_gEnable = false;
-	}
-	Log(LOG_DEBUG, ">> enable_mutex()");
-	Log(LOG_DEBUG, ">> The mutex method has been %s", (params[1] != 0 ? "enabled" : "disabled"));
+extern bool MultiThreading;
+
+// native mysql_mt(bool:toggle);
+cell AMX_NATIVE_CALL Native::mysql_mt(AMX* amx, cell* params) {
+	Log(LOG_DEBUG, ">> mysql_mt()");
+	
+	MultiThreading = !!(params[1]);
+	
+	Log(LOG_DEBUG, "MultiThreading %s.", MultiThreading == true ? "enabled" : "disabled"); 
 	return 1;
-} 
+}
 
 // native cache_save(connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_save(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_save(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
-	cell ret_val = 0;
 	Log(LOG_DEBUG, ">> cache_save(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_save", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
 	
-	CMySQLHandler *cHandle = SQLHandle[cID];
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_save", cID), 0;
 	
-	if(cHandle->m_pActiveCache != NULL) {
-		if(cHandle->m_bActiveCacheStored != 0) //if active cache was already stored
-			ret_val = cHandle->m_bActiveCacheStored; //return the ID of already stored cache
-		else {
-			int ID = 1;
-			CMySQLResult *cResult = new CMySQLResult;
-			*cResult = *cHandle->m_pActiveCache;
-		
+	int CacheID = CMySQLHandle::GetHandle(cID)->SaveActiveResult();
+	if(CacheID == 0)
+		Native::Log(LOG_WARNING, ">> cache_save() - There is nothing to store.");
 
-			if(!cHandle->m_mpStoredCache.empty()) {
-				map<int, CMySQLResult*>::iterator itHandle = cHandle->m_mpStoredCache.end();
-				std::advance(itHandle, -1);
-				ID = itHandle->first+1;
-			}
-			cHandle->m_bActiveCacheStored = ID;
-			cHandle->m_mpStoredCache.insert( std::map<int, CMySQLResult*>::value_type(ID, cResult) );
-			ret_val = ID;
-		}
-	}
-	else {
-		Log(LOG_WARNING, ">> cache_save(...) - There is nothing to store.", cID);
-		ret_val = 0;
-	}
-
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
+	return (cell)CacheID;
 }
 
 // native cache_delete(id, connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_delete(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_delete(AMX* amx, cell* params) {
 	unsigned int cID = params[2];
 	Log(LOG_DEBUG, ">> cache_delete(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_delete", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_delete", cID), 0;
 
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	int CacheID = params[1];
-	if(CacheID > 0) {
-		if(cHandle->m_mpStoredCache.find(CacheID) != cHandle->m_mpStoredCache.end()) {
-			CMySQLResult *ResultHandle = cHandle->m_mpStoredCache[CacheID];
-			if(cHandle->m_pActiveCache == ResultHandle)
-				cHandle->m_pActiveCache = NULL;
-			delete ResultHandle;
-			cHandle->m_mpStoredCache.erase(CacheID);
-		}
-	}
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
+	return (cell)CMySQLHandle::GetHandle(cID)->DeleteSavedResult(params[1]);
 }
 
 // native cache_set_active(id, connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_set_active(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_set_active(AMX* amx, cell* params) {
 	unsigned int cID = params[2];
 	Log(LOG_DEBUG, ">> cache_set_active(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_set_active", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_set_active", cID), 0;
 
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	int CacheID = params[1];
-	if(CacheID > 0) {
-		if(cHandle->m_mpStoredCache.find(CacheID) != cHandle->m_mpStoredCache.end()) {
-			if(cHandle->m_mpStoredCache.at(CacheID) != NULL) {
-				CMySQLResult *cResult = cHandle->m_mpStoredCache[CacheID];
-				if(cHandle->m_pActiveCache != NULL) {
-					delete cHandle->m_pActiveCache;
-					cHandle->m_pActiveCache = NULL;
-					cHandle->m_bActiveCacheStored = 0;
-				}
-				cHandle->m_pActiveCache = cResult;
-			}
-		}
-	}
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
+	return CMySQLHandle::GetHandle(cID)->SetActiveResult((int)params[1]);
 }
 
 // native cache_get_data(&num_rows, &num_fields, connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_data(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_data(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_data(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_data", cID);
-		Mutex::getInstance()->_unlockMutex();
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_data", cID), 0;
+	
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) { 
+		Log(LOG_WARNING, ">> cache_get_data(...) - There is no active cache.");
 		return 0;
 	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_data(...) - There is no active cache.");
-	else {
-		cell *ptr;
-		amx_GetAddr(amx, params[1], &ptr);
-		*ptr = (cell)cHandle->m_pActiveCache->m_dwCacheRows;
-		amx_GetAddr(amx, params[2], &ptr);
-		*ptr = cHandle->m_pActiveCache->m_dwCacheFields;
-	}
-	Mutex::getInstance()->_unlockMutex();
+
+	cell *AddressPtr;
+	amx_GetAddr(amx, params[1], &AddressPtr);
+	(*AddressPtr) = (cell)Result->GetRowCount();
+	amx_GetAddr(amx, params[2], &AddressPtr);
+	(*AddressPtr) = (cell)Result->GetFieldCount();
 	return 1;
 }
 
 // native cache_get_field(field_index, dest[], connectionHandle = 1)
-cell AMX_NATIVE_CALL Natives::n_cache_get_field(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_field(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_field(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	if(cHandle->m_pActiveCache == NULL) 
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_field", cID), 0;
+	
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) {
 		Log(LOG_WARNING, ">> cache_get_field(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1];
-		if (a < cHandle->m_pActiveCache->m_szCacheFields.size())
-			AMX_H->SetCString(amx, params[2], cHandle->m_pActiveCache->m_szCacheFields[a], params[4]);
-		else 
-			AMX_H->SetCString(amx, params[2], "NULL", params[4]);
+		return 0; 
 	}
-	Mutex::getInstance()->_unlockMutex();
+	
+	string FieldName;
+	Result->GetFieldName(params[1], FieldName);
+	AMX_H->SetString(amx, params[2], FieldName, params[4]);
 	return 1;
 }
 
 // native cache_get_row(row, idx, dest[], connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_row(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_row(AMX* amx, cell* params) {
 	unsigned int cID = params[4];
 	Log(LOG_DEBUG, ">> cache_get_row(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_row", cID);
-		Mutex::getInstance()->_unlockMutex();
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_row", cID), 0;
+
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) {
+		Log(LOG_WARNING, ">> cache_get_row(...) - There is no active cache.");
 		return 0;
 	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_row(...) - There is no active cache.");
-	else {
-		unsigned int 
-			a = params[1], 
-			b = params[2];
 
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && b < cHandle->m_pActiveCache->m_dwCacheFields)
-			AMX_H->SetCString(amx, params[3], cHandle->m_pActiveCache->m_sCache[a][b], params[5]);
-		else 
-			AMX_H->SetCString(amx, params[3], "NULL", params[5]);
-	}
-	Mutex::getInstance()->_unlockMutex();
+	string RowData;
+	Result->GetRowData(params[1], params[2], RowData);
+	AMX_H->SetString(amx, params[3], RowData, params[5]);
 	return 1;
 }
 
 // native cache_get_row_int(row, idx, connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_row_int(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_row_int(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_row_int", cID);
-		Mutex::getInstance()->_unlockMutex();
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_row_int", cID), 0;
+
+	int ReturnVal = 0;
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) {
+		Log(LOG_WARNING, ">> cache_get_row_int(...) - There is no active cache.");
 		return 0;
 	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	int val = 0;
 
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_row_int(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1], b = params[2];
-		
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && b < cHandle->m_pActiveCache->m_dwCacheFields) {
-			istringstream ssConvertBuf (cHandle->m_pActiveCache->m_sCache[a][b]);
-			ssConvertBuf >> val;
-			if(ssConvertBuf.fail()) {
-				Log(LOG_ERROR, ">> cache_get_row_int(...) - An error occured during the datatype conversion.");
-				val = 0;
-			}
-		}
+	string RowData;
+	Result->GetRowData(params[1], params[2], RowData);
+	
+	stringstream ConvertBuf (RowData);
+	ConvertBuf >> ReturnVal;
+	if(ConvertBuf.fail()) {
+		Log(LOG_ERROR, ">> cache_get_row_int(...) - An error occured during the datatype conversion.");
+		ReturnVal = 0;
 	}
-	Mutex::getInstance()->_unlockMutex();
-	return val;
+	return ReturnVal;
 }
 
 // native Float:cache_get_row_float(row, idx, connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_row_float(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_row_float(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_row_float", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	float val = 0.0f;
-
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_row_float(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1], b = params[2];
 	
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && b < cHandle->m_pActiveCache->m_dwCacheFields) {
-			istringstream ssConvertBuf (cHandle->m_pActiveCache->m_sCache[a][b]);
-			ssConvertBuf >> val;
-			if(ssConvertBuf.fail()) {
-				Log(LOG_ERROR, ">> cache_get_row_float(...) - An error occured during the datatype conversion.");
-				val = 0.0f;
-			}
-		}
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_row_float", cID), 0;
+	
+	
+	float ReturnVal = 0.0f;
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) {
+		Log(LOG_WARNING, ">> cache_get_row_float(...) - There is no active cache.");
+		return amx_ftoc(ReturnVal);
 	}
-	Mutex::getInstance()->_unlockMutex();
-	return amx_ftoc(val);
+
+	string RowData;
+	Result->GetRowData(params[1], params[2], RowData);
+	
+	stringstream ConvertBuf (RowData);
+	ConvertBuf >> ReturnVal;
+	if(ConvertBuf.fail()) {
+		Log(LOG_ERROR, ">> cache_get_row_float(...) - An error occured during the datatype conversion.");
+		ReturnVal = 0.0f;
+	}
+	
+	return amx_ftoc(ReturnVal);
 }
 
 // native cache_get_field_content(row, const field_name[], dest[], connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_field_content(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_field_content(AMX* amx, cell* params) {
 	unsigned int cID = params[4];
 	Log(LOG_DEBUG, ">> cache_get_field_content(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content", cID);
-		Mutex::getInstance()->_unlockMutex();
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content", cID), 0;
+	
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+	if(Result == NULL) {
+		Log(LOG_WARNING, ">> cache_get_field_content(...) - There is no active cache.");
 		return 0;
 	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_field_content(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1];
-		char* szField;
-		AMX_H->GetCString(amx, params[2], szField);
-		AMX_H->SetCString(amx, params[3], "NULL");
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && cHandle->m_pActiveCache->m_dwCacheFields > 0) {
-			for (unsigned int i = 0; i < cHandle->m_pActiveCache->m_dwCacheFields; i++) {
-				if (!strcmp(szField, cHandle->m_pActiveCache->m_szCacheFields[i])) {
-					AMX_H->SetCString(amx, params[3], cHandle->m_pActiveCache->m_sCache[a][i], params[5]);
-					break;
-				}
-			}
-		}
-		free(szField);
-	}
-	Mutex::getInstance()->_unlockMutex();
+	
+	string 
+		FieldName,
+		FieldData;
+	
+	AMX_H->GetString(amx, params[2], FieldName);
+	Result->GetRowDataByName(params[1], FieldName, FieldData);
+	AMX_H->SetString(amx, params[3], FieldData, params[5]);
 	return 1;
 }
 
 // native cache_get_field_content_int(row, const field_name[], connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_field_content_int(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_field_content_int(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content_int", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	int val = 0;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content_int", cID), 0;
+	
+	int ReturnVal = 0;
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
 
-	if(cHandle->m_pActiveCache == NULL) 
+	if(Result == NULL) {
 		Log(LOG_WARNING, ">> cache_get_field_content_int(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1];
-		char* szField;
-		AMX_H->GetCString(amx, params[2], szField);
-		
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && cHandle->m_pActiveCache->m_dwCacheFields > 0) {
-			for (unsigned int i = 0; i < cHandle->m_pActiveCache->m_dwCacheFields; i++) {
-				if (!strcmp(szField, cHandle->m_pActiveCache->m_szCacheFields[i])) {
-					istringstream ssConvertBuf (cHandle->m_pActiveCache->m_sCache[a][i]);
-					ssConvertBuf >> val;
-					if(ssConvertBuf.fail()) {
-						Log(LOG_ERROR, ">> cache_get_field_content_int(...) - An error occured during the datatype conversion.");
-						val = 0;
-					}
-					break;
-				}
-			}
-		}
-		free(szField);
+		return amx_ftoc(ReturnVal);
 	}
-	Mutex::getInstance()->_unlockMutex();
-	return val;
+	
+	string 
+		FieldName,
+		FieldData;
+	
+	AMX_H->GetString(amx, params[2], FieldName);
+	Result->GetRowDataByName(params[1], FieldName, FieldData);
+	stringstream ConvertBuf (FieldData);
+	ConvertBuf >> ReturnVal;
+	if(ConvertBuf.fail()) {
+		Log(LOG_ERROR, ">> cache_get_field_content_int(...) - An error occured during the datatype conversion.");
+		ReturnVal = 0;
+	}
+	
+	return ReturnVal;
 }
 
 // native Float:cache_get_field_content_float(row, const field_name[], connectionHandle = 1);
-cell AMX_NATIVE_CALL Natives::n_cache_get_field_content_float(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> cache_get_field_content_float(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content_float", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	float val = 0.0f;
-
-	if(cHandle->m_pActiveCache == NULL) 
-		Log(LOG_WARNING, ">> cache_get_field_content_float(...) - There is no active cache.");
-	else {
-		unsigned int a = params[1];
-		char* szField;
-		AMX_H->GetCString(amx, params[2], szField);
 	
-		if (a < cHandle->m_pActiveCache->m_sCache.size() && cHandle->m_pActiveCache->m_dwCacheFields > 0) {
-			for (unsigned int i = 0; i < cHandle->m_pActiveCache->m_dwCacheFields; i++) {
-				if (!strcmp(szField, cHandle->m_pActiveCache->m_szCacheFields[i])) {
-					istringstream ssConvertBuf (cHandle->m_pActiveCache->m_sCache[a][i]);
-					ssConvertBuf >> val;
-					if(ssConvertBuf.fail()) {
-						Log(LOG_ERROR, ">> cache_get_field_content_float(...) - An error occured during the datatype conversion.");
-						val = 0.0f;
-					}
-					break;
-				}
-			}
-		}
-		free(szField);
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_content_float", cID), 0;
+	
+	
+	float ReturnVal = 0.0f;
+	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
+
+	if(Result == NULL) {
+		Log(LOG_WARNING, ">> cache_get_field_content_float(...) - There is no active cache.");
+		return amx_ftoc(ReturnVal);
 	}
-	Mutex::getInstance()->_unlockMutex();
-	return amx_ftoc(val);
+	
+	string 
+		FieldName,
+		FieldData;
+	
+	AMX_H->GetString(amx, params[2], FieldName);
+	Result->GetRowDataByName(params[1], FieldName, FieldData);
+	stringstream ConvertBuf (FieldData);
+	ConvertBuf >> ReturnVal;
+	if(ConvertBuf.fail()) {
+		Log(LOG_ERROR, ">> cache_get_field_content_float(...) - An error occured during the datatype conversion.");
+		ReturnVal = 0.0f;
+	}
+	
+	return amx_ftoc(ReturnVal);
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_connect(AMX* amx, cell* params) {
+//native mysql_connect(const host[], const user[], const database[], const password[], port = 3306);
+cell AMX_NATIVE_CALL Native::mysql_connect(AMX* amx, cell* params) {
 	bool match = false;
-	string host = AMX_H->GetString(amx, params[1]),
-	       user = AMX_H->GetString(amx, params[2]),
-	       db = AMX_H->GetString(amx, params[3]),
-	       pass = AMX_H->GetString(amx, params[4]);
+	string 
+		host, user, db, pass;
 	unsigned int 
-		i = 1, 
-		port = 3306;
-	if (params[0] / 4 >= 5)
 		port = params[5];
 
-	Mutex::getInstance()->_lockMutex();
+	AMX_H->GetString(amx, params[1], host);
+	AMX_H->GetString(amx, params[2], user);
+	AMX_H->GetString(amx, params[3], db);
+	AMX_H->GetString(amx, params[4], pass);
+
 	Log(LOG_DEBUG, ">> mysql_connect(%s, %s, %s, ***) on port %d", host.c_str(), user.c_str(), db.c_str(), port);
-	if (SQLHandle.size() > 0) {
-		while (i != SQLHandle.size()) {
-			// Code used for checking duplicate connections.
-			// I recommend using mysql_reconnect() to reconnect instead of mysql_connect(), because the plugin saves the data of a connection handle
-			if (SQLHandle[i]->m_Hostname.compare(host) == 0 && 
-				SQLHandle[i]->m_Username.compare(user) == 0 && 
-				SQLHandle[i]->m_Database.compare(db) == 0 && 
-				SQLHandle[i]->m_Password.compare(pass) == 0) 
-			{
-				SQLHandle[i]->m_bIsConnected = false;
-				SQLHandle[i]->Connect();
-				match = true;
-				break;
-			}
-			i++;
-		}
-	}
-	if (!match) {
-		int ID = 1;
-		CMySQLHandler *cHandle = new CMySQLHandler(host, user, pass, db, port);
+	int CID = CMySQLHandle::Create(host, user, pass, db, port);
 
-		if(!SQLHandle.empty()) {
-			map<int, CMySQLHandler*>::iterator itHandle = SQLHandle.end();
-			std::advance(itHandle, -1);
-			ID = itHandle->first+1;
-		}
 
-		SQLHandle.insert(make_pair(ID, cHandle));
-		Mutex::getInstance()->_unlockMutex();
-		return (cell)ID;
-	}
-	Mutex::getInstance()->_unlockMutex();
-	return (cell)i;
+	CMySQLQuery::PushConnect(CMySQLHandle::GetHandle(CID));
+	while(CMySQLHandle::GetHandle(CID)->GetMySQLPointer() == NULL) { }
+
+	return (cell)CID;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_data_seek(AMX* amx, cell* params) {
-	unsigned int cID = params[2];
-	Log(LOG_DEBUG, ">> mysql_data_seek(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_data_seek", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cell)cHandle->Seek(params[1]);
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_reconnect(AMX* amx, cell* params) {
+//native mysql_reconnect(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_reconnect(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_reconnect(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_reconnect", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cHandle->Disconnect();
-	cHandle->m_bIsConnected = false;
-	cHandle->Connect();
-	Mutex::getInstance()->_unlockMutex();
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_reconnect", cID), 0;
+	
+	CMySQLQuery::PushReconnect(CMySQLHandle::GetHandle(cID));
 	return 1;
 }
 
-//mysql_query_callback(conhandle, query[], bool:cache, callback[], format[], {Float,_}:...);
-cell AMX_NATIVE_CALL Natives::n_mysql_query_callback(AMX* amx, cell* params) {
+//native mysql_tquery(conhandle, query[], callback[], format[], {Float,_}:...);
+cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
+	static const int ConstParamCount = 4;
 	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_query_callback(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_query_callback", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell *ptr;
-	s_aFormat qData;
-	qData.bCache = params[3];
-	AMX_H->GetCString(amx, params[2], qData.szQuery);
-	AMX_H->GetCString(amx, params[4], qData.szCallback);
-	AMX_H->GetCString(amx, params[5], qData.szFormat);
-	int iParamCount = 6, idx = 0;
+	Log(LOG_DEBUG, ">> mysql_tquery(Connection handle: %d)", cID);
+
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_tquery", cID), 0;
+
+	string ParamFormat;
+	AMX_H->GetString(amx, params[4], ParamFormat);
+
+
+	if(ParamFormat.length() != ( (params[0]/4) - ConstParamCount ))
+		return Log(LOG_ERROR, ">> mysql_tquery: Callback parameter count does not match format specifier length."), 0;
+
+	CMySQLHandle *cHandle = CMySQLHandle::GetHandle(cID);
+	CMySQLQuery *Query = new CMySQLQuery;
+	CCallback *Callback = new CCallback;
+	
+	AMX_H->GetString(amx, params[2], Query->Query);
+	AMX_H->GetString(amx, params[3], Callback->Name);
+	
+	Callback->ParamFormat = ParamFormat;
+	Query->ConnHandle = cHandle;
+	Query->Callback = Callback;
+	
+	
+	int idx = 1;
 	char *szArg;
-	while (*qData.szFormat) {
-		if ((iParamCount + idx) > params[0] || idx >= 20) {
-			break;
-		}
-		if (*qData.szFormat == 'd' || *qData.szFormat == 'i') {
-			amx_GetAddr(amx, params[iParamCount + idx], &ptr);
+	cell *AddressPtr;
+	
+	for(string::iterator c = Callback->ParamFormat.begin(), end = Callback->ParamFormat.end(); c != end; ++c) {
+		if ( (*c) == 'd' || (*c) == 'i') {
+			amx_GetAddr(amx, params[ConstParamCount + idx], &AddressPtr);
 			szArg = (char*)malloc(sizeof(char) * 12); // strlen of (-2^31) + '\0'
-			itoa(*ptr, szArg, 10);
-		} else if (*qData.szFormat == 's' || *qData.szFormat == 'z') {
-			AMX_H->GetCString(amx, params[iParamCount + idx], szArg);
-		} else if (*qData.szFormat == 'f') {
-			amx_GetAddr(amx, params[iParamCount + idx], &ptr);
-			float pFloat = amx_ctof(*ptr);
-			szArg = (char*)malloc(sizeof(char) * 84/*39*/); // strlen of (2^(2^7)) + '\0'
-			sprintf(szArg, "%f", pFloat);
+			if(szArg != NULL)
+				itoa(*AddressPtr, szArg, 10);
+		} else if ( (*c) == 's' || (*c) == 'z') {
+			AMX_H->GetCString(amx, params[ConstParamCount + idx], szArg);
+		} else if ( (*c) == 'f') {
+			amx_GetAddr(amx, params[ConstParamCount + idx], &AddressPtr);
+			float pFloat = amx_ctof(*AddressPtr);
+			szArg = (char*)malloc(sizeof(char) * 84); // strlen of (2^(2^7)) + '\0'
+			if(szArg != NULL)
+				sprintf(szArg, "%f", pFloat);
 		} else {
 			szArg = (char*)malloc(sizeof(char) * 5); // "NULL" + '\0'
-			strcpy(szArg, "NULL"); // Avoids crashes caused by invalid formatting characters.
+			if(szArg != NULL)
+				strcpy(szArg, "NULL"); // Avoids crashes caused by invalid formatting characters.
 		}
-		qData.arrElements[idx].assign(szArg);
+		Callback->Parameters.push(string(szArg));
 		free(szArg);
-		*qData.szFormat++;
+		
 		idx++;
 	}
-	// Setting the pointer to it's start address.
-	while (idx > 0) {
-		*qData.szFormat--;
-		idx--;
-	}
 	
-	cHandle->m_sQueryData.push(qData);
-	Mutex::getInstance()->_unlockMutex();
+
+	CMySQLQuery::PushQuery(Query); 
 	return 1;
 }
 
 // native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
-cell AMX_NATIVE_CALL Natives::n_mysql_format(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_format(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_format", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_format", cID), 0;
+	
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+
 	cell *sPtr;
 	float fData;
-	char *szFormat, *szParam, *szResult;
+	char 
+		*szFormat = NULL, 
+		*szParam = NULL, 
+		*szResult = NULL;
 	AMX_H->GetCString(amx, params[4], szFormat);
 	unsigned int iParam = 5, iArgs = (params[0] / sizeof(cell)) - 4, precision = NULL;
 	char format_data[20];
@@ -598,13 +454,18 @@ cell AMX_NATIVE_CALL Natives::n_mysql_format(AMX* amx, cell* params) {
 				szParam = (char*)malloc((precision != NULL ? (float_len + precision) : (float_len + 6)) + 1);
 				sprintf(szParam, format_data, fData);
 				goto alloc_format;
-			case 'e':
+			case 'e': {
 				char szBuffer[8192];
 				memset(szBuffer, '\0', 8192);
-				cHandle->EscapeStr(AMX_H->GetString(amx, params[iParam]), szBuffer);
+				
+				string Source;
+				AMX_H->GetString(amx, params[iParam], Source);
+				mysql_real_escape_string(ConnPtr, szBuffer, Source.c_str(), Source.length());
+				
 				szParam = (char*)malloc(strlen(szBuffer) + 1);
 				strcpy(szParam, szBuffer);
 				goto alloc_format;
+			}
 			case 'x':
 				char hex[16];
 				amx_GetAddr(amx, params[iParam], &sPtr);
@@ -652,364 +513,160 @@ alloc_format:
 		szFormat[l] = '\0';
 		iParam++;
 	}
-	Mutex::getInstance()->_unlockMutex();
+	
 	AMX_H->SetCString(amx, params[2], szFormat, params[3]);
 	free(szFormat);
 	return 1;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_set_charset(AMX* amx, cell* params) {
+//native mysql_set_charset(charset[], connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_set_charset(AMX* amx, cell* params) {
 	unsigned int cID = params[2];
 	Log(LOG_DEBUG, ">> mysql_set_charset(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_set_charset", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cHandle->SetCharset(AMX_H->GetString(amx, params[1]));
-	Mutex::getInstance()->_unlockMutex();
-	return 0;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_set_charset", cID), 0;
+
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	string CharSet;
+	AMX_H->GetString(amx, params[1], CharSet);
+	mysql_set_character_set(ConnPtr, CharSet.c_str());
+	
+	return 1;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_get_charset(AMX* amx, cell* params) {
+//native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
+cell AMX_NATIVE_CALL Native::mysql_get_charset(AMX* amx, cell* params) {
 	unsigned int cID = params[2];
 	Log(LOG_DEBUG, ">> mysql_get_charset(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_get_charset", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	AMX_H->SetString(amx, params[1], cHandle->GetCharset(), params[3]);
-	Mutex::getInstance()->_unlockMutex();
-	return 0;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_get_charset", cID), 0;
+
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	string CharSet = mysql_character_set_name(ConnPtr);
+	AMX_H->SetString(amx, params[1], CharSet, params[3]);
+	
+	return 1;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_insert_id(AMX* amx, cell* params) {
+//native mysql_insert_id(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_insert_id(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_insert_id(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_insert_id", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cell)cHandle->InsertId();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_insert_id", cID), 0;
+
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	cell InsertID = (cell)mysql_insert_id(ConnPtr);
+	
+	return InsertID;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_free_result(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_free_result(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_free_result", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cHandle->FreeResult();
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_store_result(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_store_result(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_store_result", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cHandle->StoreResult();
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_real_escape_string(AMX* amx, cell* params) {
+//native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
+cell AMX_NATIVE_CALL Native::mysql_real_escape_string(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	Log(LOG_DEBUG, ">> mysql_real_escape_string(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_real_escape_string", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	char tmp_buffer[8192 + 1]; // Allocate a string for data which is going to be returned.
-	memset(tmp_buffer, 0, 8192 + 1); // Setting the allocated string to 0.
-	int ret_len = cHandle->EscapeStr(AMX_H->GetString(amx, params[1]), tmp_buffer);
-	AMX_H->SetString(amx, params[2], tmp_buffer, params[4]);
-	Mutex::getInstance()->_unlockMutex();
-	return ret_len;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_real_escape_string", cID), 0;
+	
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	size_t DestLength = (params[4] <= 0 ? 8192 : params[4]);
+
+	string Source;
+	AMX_H->GetString(amx, params[1], Source);
+	char *StrBuffer = new char[Source.length()*2+1];
+	memset(StrBuffer, '\0', DestLength + 1);
+
+	cell StringLen = (cell)mysql_real_escape_string(ConnPtr, StrBuffer, Source.c_str(), Source.length());
+	AMX_H->SetString(amx, params[2], StrBuffer, params[4]);
+	
+	delete[] StrBuffer;
+	return StringLen;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_field_count(AMX* amx, cell* params) {
+/*
+//native mysql_field_count(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_field_count(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_field_count(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_field_count", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = cHandle->FieldCount();
-	Mutex::getInstance()->_unlockMutex();
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_field_count", cID), 0;
+	
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	cell ret_val = mysql_field_count(ConnPtr);
+	
 	return ret_val;
-}
+}*/
 
-cell AMX_NATIVE_CALL Natives::n_mysql_reload(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_reload(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_reload", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cell)cHandle->Reload();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
 
-cell AMX_NATIVE_CALL Natives::n_mysql_close(AMX* amx, cell* params) {
+cell AMX_NATIVE_CALL Native::mysql_close(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_close(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_close", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	delete SQLHandle[cID];
-	SQLHandle.erase(cID);
-	Mutex::getInstance()->_unlockMutex();
+
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_close", cID), 0;
+	
+	CMySQLQuery::PushDisconnect(CMySQLHandle::GetHandle(cID));
 	return 1;
 }
 
-// TODO: this function should be updated at some point
-cell AMX_NATIVE_CALL Natives::n_mysql_fetch_row_format(AMX* amx, cell* params) {
-	unsigned int cID = params[3];
-	cell ret_val = 0;
-	Log(LOG_DEBUG, ">> mysql_fetch_row_format(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_fetch_row_format", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cHandle->Delimiter = AMX_H->GetString(amx, params[2]);
-	string fRow = cHandle->FetchRow();
-	if (fRow.compare("NULL") != 0) {
-		AMX_H->SetString(amx, params[1], fRow, params[4]);
-		cHandle->m_szResult.clear();
-		ret_val = 1;
-	}
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
 
-// TODO: this function should be updated at some point
-cell AMX_NATIVE_CALL Natives::n_mysql_fetch_field_row(AMX* amx, cell* params) {
-	unsigned int cID = params[3];
-	Log(LOG_DEBUG, ">> mysql_fetch_field_row(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_fetch_field_row", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	string szField = AMX_H->GetString(amx, params[2]);
-	cHandle->FetchField(szField);
-	AMX_H->SetString(amx, params[1], cHandle->m_szResult, params[4]);
-	cell ret_val = cHandle->m_szResult.length();
-	cHandle->m_szResult.clear();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_retrieve_row(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_retrieve_row(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_retrieve_row", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = cHandle->RetrieveRow();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_ping(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_ping(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_ping", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cHandle->Ping() == 0) ? 1 : (-1);
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_num_rows(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_num_rows(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_num_rows", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cell)cHandle->NumRows();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_num_fields(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_num_fields(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_num_fields", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = cHandle->NumFields();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_affected_rows(AMX* amx, cell* params) {
+//native mysql_affected_rows(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_affected_rows(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
 	Log(LOG_DEBUG, ">> mysql_affected_rows(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_affected_rows", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = (cell)cHandle->AffectedRows();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
+	
+	if(!CMySQLHandle::IsValid(cID)) 
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_affected_rows", cID), 0;
+
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	return (cell)mysql_affected_rows(ConnPtr);
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_stat(AMX* amx, cell* params) {
+//native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
+cell AMX_NATIVE_CALL Native::mysql_stat(AMX* amx, cell* params) {
 	unsigned int cID = params[2];
-	
 	Log(LOG_DEBUG, ">> mysql_stat(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_stat", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	AMX_H->SetString(amx, params[1], cHandle->Statistics(), params[3]);
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_warning_count(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_warning_count(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_warning_count", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = cHandle->WarningCount();
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_errno(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	Log(LOG_DEBUG, ">> mysql_errno(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_errno", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	cell ret_val = cHandle->m_dwError;
-	Mutex::getInstance()->_unlockMutex();
-	return ret_val;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_fetch_field(AMX* amx, cell* params) {
-	unsigned int cID = params[3];
-	Log(LOG_DEBUG, ">> mysql_fetch_field(Connection handle: %d)", cID);
-	Mutex::getInstance()->_lockMutex();
-	if(!CMySQLHandler::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_fetch_field", cID);
-		Mutex::getInstance()->_unlockMutex();
-		return 0;
-	}
-	CMySQLHandler *cHandle = SQLHandle[cID];
-	AMX_H->SetString(amx, params[2], cHandle->FetchFieldName(params[1]), params[4]);
-	Mutex::getInstance()->_unlockMutex();
-	return 1;
-}
-
-cell AMX_NATIVE_CALL Natives::n_mysql_debug(AMX* amx, cell* params) {
-	Log(LOG_WARNING, "'mysql_debug' is deprecated, use 'mysql_log' instead.");
-	logprintf("function 'mysql_debug' is deprecated, use 'mysql_log' instead.");
-	if(params[1])
-		getInstance()->m_DebugLevel = LOG_ERROR | LOG_WARNING | LOG_DEBUG;
-	else
-		getInstance()->m_DebugLevel = LOG_NONE;
+	
+	if(!CMySQLHandle::IsValid(cID))
+		return ERROR_INVALID_CONNECTION_HANDLE("mysql_stat", cID), 0;
+	
+	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
+	string Stats = string(mysql_stat(ConnPtr));
+	AMX_H->SetString(amx, params[1], Stats, params[3]);
 	
 	return 1;
 }
 
-cell AMX_NATIVE_CALL Natives::n_mysql_log(AMX* amx, cell* params) {
+//native mysql_log(loglevel);
+cell AMX_NATIVE_CALL Native::mysql_log(AMX* amx, cell* params) {
 	if(params[1] < 0)
 		return 0;
 
-	std::string szDebugLevel;
-	Natives::getInstance()->m_DebugLevel = params[1];
+	string DebugLevel;
+	LogLevel = params[1];
 	if (params[1] & LOG_ERROR) {
-		if(szDebugLevel.size())
-			szDebugLevel.append(", ");
-		szDebugLevel.append("errors");
+		if(DebugLevel.size())
+			DebugLevel.append(", ");
+		DebugLevel.append("errors");
 	}
 	if (params[1] & LOG_WARNING) {
-		if(szDebugLevel.size())
-			szDebugLevel.append(", ");
-		szDebugLevel.append("warnings");
+		if(DebugLevel.size())
+			DebugLevel.append(", ");
+		DebugLevel.append("warnings");
 	}
 	if (params[1] & LOG_DEBUG) {
-		if(szDebugLevel.size())
-			szDebugLevel.append(", ");
-		szDebugLevel.append("debug infos");
+		if(DebugLevel.size())
+			DebugLevel.append(", ");
+		DebugLevel.append("debug infos");
 	}
 
-	if(!szDebugLevel.size())
-		szDebugLevel.append("nothing");
+	if(!DebugLevel.size())
+		DebugLevel.append("nothing");
 
 	char timeform[16];
 	time_t rawtime;
@@ -1017,17 +674,18 @@ cell AMX_NATIVE_CALL Natives::n_mysql_log(AMX* amx, cell* params) {
 	struct tm * timeinfo;
 	timeinfo = localtime(&rawtime);
 	strftime(timeform, sizeof(timeform), "%X", timeinfo);
-	FILE *file = fopen(DebugFileName, "a");
+	FILE *file = fopen(LogFileName, "a");
 	if(file != NULL) {
-		fprintf(file, "[%s] [INFO] Now logging: %s\n", timeform, szDebugLevel.c_str());
+		fprintf(file, "[%s] [INFO] Now logging: %s\n", timeform, DebugLevel.c_str());
 		fclose(file);
 	}
 	return 1;
 }
 
 
-void Natives::Log(unsigned int level, char* text, ...) {
-	if (getInstance()->m_DebugLevel & level) {
+
+void Native::Log(unsigned int level, char* text, ...) {
+	if (LogLevel & level) {
 		char prefix[16];
 		switch(level) {
 		case LOG_ERROR:
@@ -1040,7 +698,7 @@ void Natives::Log(unsigned int level, char* text, ...) {
 			sprintf(prefix, "DEBUG");
 			break;
 		}
-		char timeform[16], buffer[8192];
+		char timeform[16], buffer[1024];
 		time_t rawtime;
 		time(&rawtime);
 		struct tm * timeinfo;
@@ -1049,11 +707,12 @@ void Natives::Log(unsigned int level, char* text, ...) {
 		va_list args;
 		va_start(args, text);
 		vsprintf(buffer, text, args);
-		FILE *file = fopen(DebugFileName, "a");
+		va_end(args);
+		FILE *file = fopen(LogFileName, "a");
 		if(file != NULL) {
 			fprintf(file, "[%s] [%s] %s\n", timeform, prefix, buffer);
 			fclose(file);
 		}
-		va_end(args);
+		
 	}
 }

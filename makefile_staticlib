@@ -3,11 +3,18 @@ GCC=gcc
 
 OUTFILE="bin/mysql_static.so"
 
-COMPILE_FLAGS=-c -O3 -w -DLINUX -Wall -I src/SDK/amx/
+COMPILE_FLAGS=-c -m32 -O3 -w -DLINUX -Wall -Isrc/SDK/amx/ -Isrc/
 
 all:
-	$(GCC) $(COMPILE_FLAGS) src/SDK/amx/*.c
-	$(GPP) $(COMPILE_FLAGS) src/SDK/*.cpp
-	$(GPP) $(COMPILE_FLAGS) src/*.cpp
-	$(GPP) -O2 -fshort-wchar -shared -o $(OUTFILE) *.o ./src/mysql_lib/libmysqlclient.a -lpthread
-	rm -f *.o
+	@echo Compiling..
+	@ $(GCC) $(COMPILE_FLAGS) src/SDK/amx/*.c
+	@ $(GPP) $(COMPILE_FLAGS) src/SDK/*.cpp
+	@ $(GPP) $(COMPILE_FLAGS) src/*.cpp
+	@echo Linking..
+	@ $(GPP) -O2 -fshort-wchar -shared -o $(OUTFILE) *.o ./src/mysql_lib/libmysqlclient.a -pthread ./src/boost_lib/libboost_thread.a
+	@echo Done. Binary file is now located in \"$(OUTFILE)\".
+	@ rm -f *.o
+	
+clean:
+	@ rm -f *.o
+	@echo Cleaning done.

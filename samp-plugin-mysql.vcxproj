@@ -19,12 +19,14 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -40,15 +42,20 @@
     <OutDir>bin\</OutDir>
     <TargetExt>.dll</TargetExt>
     <TargetName>mysql</TargetName>
+    <IncludePath>C:\Users\Pain\Desktop\mysql-plugin\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Pain\Desktop\mysql-plugin\src\boost_lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>mysql</TargetName>
+    <IncludePath>C:\Users\Pain\Desktop\mysql-plugin\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Pain\Desktop\mysql-plugin\src\boost_lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/arch:SSE %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -68,6 +75,7 @@
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/arch:SSE %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -76,9 +84,13 @@
       <AdditionalDependencies>src/mysql_lib/libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>plugin.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>COPY "$(TargetPath)" "D:\MySQL R8 Testing\plugins\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\CAmxString.h" />
+    <ClInclude Include="src\CCallback.h" />
     <ClInclude Include="src\CMutex.h" />
     <ClInclude Include="src\CMySQLHandler.h" />
     <ClInclude Include="src\CScripting.h" />
@@ -113,6 +125,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CAmxString.cpp" />
+    <ClCompile Include="src\CCallback.cpp" />
     <ClCompile Include="src\CMutex.cpp" />
     <ClCompile Include="src\CMySQLHandler.cpp" />
     <ClCompile Include="src\CScripting.cpp" />

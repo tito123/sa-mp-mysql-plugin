@@ -23,21 +23,14 @@ void StrAmx::SetCString(AMX* amx, cell param, char* str, int len) {
 	}
 }
 
-std::string StrAmx::GetString(AMX* amx, cell param) {
-	cell *pString;
+void StrAmx::GetString(AMX* amx, cell param, string &dest) {
 	char *szDest;
-	int nLen;
-	amx_GetAddr(amx, param, &pString);
-	amx_StrLen(pString, &nLen);
-	szDest = new char[nLen + 1];
-	amx_GetString(szDest, pString, 0, UNLIMITED);
-	szDest[nLen] = '\0';
-	string szReturn(szDest);
-	delete szDest;
-	return szReturn;
+	amx_StrParam(amx, param, szDest);
+	if(szDest != NULL)
+		dest.assign(szDest);
 }
 
-int StrAmx::GetCString(AMX* amx, cell param, char*& dest) {
+int StrAmx::GetCString(AMX* amx, cell param, char* &dest) {
 	cell *ptr;
 	int len;
 	amx_GetAddr(amx, param, &ptr);
