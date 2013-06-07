@@ -96,6 +96,7 @@
     <ClInclude Include="src\CScripting.h" />
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\misc.h" />
+    <ClInclude Include="src\CCallback.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\SDK\amx\getch.c">
@@ -110,6 +111,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\misc.cpp" />
     <ClCompile Include="src\CAmxString.cpp" />
+    <ClCompile Include="src\CCallback.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\mysql_include\libmysql.def">

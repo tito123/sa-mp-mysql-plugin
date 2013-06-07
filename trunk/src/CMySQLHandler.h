@@ -1,97 +1,194 @@
 #pragma once
 
-#include "main.h"
+#ifndef INC_CMYSQLHANDLER_H
+#define INC_CMYSQLHANDLER_H
 
-struct s_aFormat {
-	char* szCallback;
-	char* szFormat;
-	char* szQuery;
-	int bCache;
-	std::string arrElements[20];
-};
 
-class CMySQLHandler;
+#include <sstream>
+#include <vector>
+#include <queue>
+#include <map>
+#include <string>
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
+#include "mysql_include/mysql.h"
+#include "CScripting.h"
+#include "CMutex.h"
+#include "CCallback.h"
+
+using std::map;
+using std::vector;
+using std::queue;
+using std::stringstream;
+using std::string;
+
+#define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
+	Log(LOG_ERROR, ">> %s() - Invalid connection handle. (ID = %d).", function, id)
+
 
 class CMySQLResult {
 public:
-	CMySQLResult() { }
-	void operator= (const CMySQLResult &rhs);
+	friend class CMySQLQuery;
+	
+	CMySQLResult();
 	~CMySQLResult();
 
+	my_ulonglong GetRowCount() {
+		return m_Rows;
+	}
 
-	unsigned int m_dwCacheFields;
-	my_ulonglong m_dwCacheRows;
-	std::vector<std::vector<char*> > m_sCache;
-	std::vector<char*> m_szCacheFields;
-	
+	unsigned int GetFieldCount() {
+		return m_Fields;
+	}
+
+	void GetFieldName(unsigned int idx, string &dest);
+	void GetRowData(unsigned int row, unsigned int fieldidx, string &dest);
+	void GetRowDataByName(unsigned int row, string field, string &dest);
+private:
+	unsigned int m_Fields;
+	my_ulonglong m_Rows;
+	vector<vector<char*>* > m_Data;
+	vector<char*> m_FieldNames;
 };
 
 
-
-class CMySQLHandler {
+class CMySQLHandle {
 public:
-	CMySQLHandler(std::string host, std::string user, std::string passw, std::string db, size_t port);
-	~CMySQLHandler();
+	friend class CMySQLQuery;
+	
+	CMySQLHandle(string host, string user, string passw, string db, size_t port);
+	~CMySQLHandle();
 
 	static bool IsValid(int id);
 
-	int	Ping();
-	int RetrieveRow();
-	int SetCharset(std::string charsetname);
-	int EscapeStr(std::string source, char *to);
-	int Reload();
-	bool Connect();
-	bool Seek(size_t offset);
-	bool FreeResult();
-	bool StoreResult();
-	bool FetchField(std::string column);
+	bool ConnectT(); //should only be called in the thread
+	void DisconnectT(); //should only be called in the thread
 
-	bool m_bIsConnected;
-	bool m_bQueryProcessing;
 
-	my_ulonglong InsertId();
-	my_ulonglong NumRows();
-	my_ulonglong AffectedRows();
-	void Disconnect();
+	static int Create(string host, string user, string pass, string db, size_t port);
 
-	unsigned int NumFields();
-	unsigned int WarningCount();
-	unsigned int FieldCount();
+	static CMySQLHandle *GetHandle(int cid) {
+		SQLHandleMutex.Lock();
+		CMySQLHandle *Result = NULL;
+		if(IsValid(cid))
+			Result = SQLHandle.at(cid);
+		SQLHandleMutex.Unlock();
+		return Result;
+	}
 
-	unsigned int m_dwError, m_dwFields;
+	MYSQL *GetMySQLPointer() {
+		SQLHandleMutex.Lock();
+		MYSQL *ptr = m_ThreadConnPtr;
+		SQLHandleMutex.Unlock();
+		return ptr;
+	}
 
+	void SetMySQLPointer(MYSQL *mysqlptr) {
+		SQLHandleMutex.Lock();
+		m_ThreadConnPtr = mysqlptr;
+		SQLHandleMutex.Unlock();
+	}
 	
-	struct errorInfo {
-		std::string m_szQuery;
-		std::string m_szError;
-		int m_uiErrorID;
-		std::string m_szCallback;
-	};
+	void SetNewResult(CMySQLResult *result) {
+		m_ActiveResult = result;
+		m_ActiveResultID = 0;
+	}
+	
+	int SaveActiveResult();
+	bool DeleteSavedResult(int resultid);
+	bool SetActiveResult(int resultid);
 
-	// cache variables
-	std::map<int, CMySQLResult*> m_mpStoredCache;
-	CMySQLResult *m_pActiveCache;
-	int m_bActiveCacheStored; //ID of stored cache; 0 if not stored yet
+	CMySQLResult *GetResult() {
+		return m_ActiveResult;
+	}
 
+	bool IsActiveResultSaved() {
+		return m_ActiveResultID > 0 ? true : false;
+	}
 
-	std::vector<char*> m_szFields;
+	int GetID() {
+		return m_CID;
+	}
+private:
+	static CMutex SQLHandleMutex;
+	static map<int, CMySQLHandle *> SQLHandle;
+	
+	map<int, CMySQLResult*> m_SavedResults;
+	CMySQLResult *m_ActiveResult;
+	int m_ActiveResultID; //ID of stored result; 0 if not stored yet
+	
 
-	std::queue<s_aFormat> m_sQueryData;
-	std::queue<s_aFormat> m_sCallbackData;
-	std::queue<errorInfo> errorCallback;
+	bool m_Connected;
+	int m_CID;
 
-	std::string FetchRow();
-	std::string Statistics();
-	std::string GetCharset();
-	std::string FetchFieldName(int number);
-	std::string m_Hostname, m_Username, m_Password, m_Database, Delimiter, m_szResult;
-
+	string m_Hostname, m_Username, m_Password, m_Database;
 	size_t m_iPort;
 
-	MYSQL * m_stConnectionPtr;
-	MYSQL_ROW m_stRow;
-	MYSQL_RES * m_stResult;
-	MYSQL_FIELD * m_stField;
+	MYSQL *m_ThreadConnPtr;
 };
 
-extern std::map<int, CMySQLHandler *> SQLHandle;
+
+class CMySQLQuery {
+public:
+	static void ProcessQueryT();
+	
+	CMySQLQuery();
+	~CMySQLQuery() {}
+	
+	string Query;
+	
+	CMySQLHandle *ConnHandle;
+	CMySQLResult *Result;
+	CCallback *Callback;
+
+	static void PushQuery(CMySQLQuery *query) {
+		QueryMutex.Lock();
+		m_QueryQueue.push(query);
+		QueryMutex.Unlock();
+	}
+
+	static CMySQLQuery *GetNextQuery() {
+		QueryMutex.Lock();
+		CMySQLQuery *Query = NULL;
+		if(!m_QueryQueue.empty()) {
+			Query = m_QueryQueue.front();
+			m_QueryQueue.pop();
+		}
+		QueryMutex.Unlock();
+		return Query;
+	}
+
+	static void ExecuteT(CMySQLQuery *query, MYSQL *connptr);
+
+
+	static void PushConnect(CMySQLHandle *handle) {
+		CMySQLHandle::SQLHandleMutex.Lock();
+		ConnectQueue.push(handle);
+		CMySQLHandle::SQLHandleMutex.Unlock();
+	}
+	static void PushDisconnect(CMySQLHandle *handle) {
+		CMySQLHandle::SQLHandleMutex.Lock();
+		DisconnectQueue.push(handle);
+		CMySQLHandle::SQLHandleMutex.Unlock();
+	}
+	static void PushReconnect(CMySQLHandle *handle) {
+		CMySQLHandle::SQLHandleMutex.Lock();
+		ReconnectQueue.push(handle);
+		CMySQLHandle::SQLHandleMutex.Unlock();
+	}
+private:
+	static CMutex MySQLMutex;
+	static CMutex QueryMutex;
+	static queue<CMySQLQuery*> m_QueryQueue;
+
+	static int QueryCounter;
+
+	static queue <CMySQLHandle*> ConnectQueue;
+	static queue <CMySQLHandle*> DisconnectQueue;
+	static queue <CMySQLHandle*> ReconnectQueue;
+};
+
+
+#endif

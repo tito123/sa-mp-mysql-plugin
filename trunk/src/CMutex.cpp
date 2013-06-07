@@ -2,18 +2,10 @@
 
 #include "CMutex.h"
 
-Mutex* Mutex::m_pInstance = NULL;
+CMutex::CMutex() {
 #ifdef WIN32
-bool Mutex::m_gEnable = true;
+	InitializeCriticalSection(&m_mutexHandle);
 #else
-bool Mutex::m_gEnable = false;
-#endif
-
-Mutex::Mutex() {
-#ifdef WIN32
-	m_mutexHandle = CreateMutex(NULL, FALSE, "mysql_r20");
-#else
-	//m_mutexHandle = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutexattr_t mutexAttr;
 	pthread_mutexattr_init(&mutexAttr);
 	pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
@@ -21,39 +13,27 @@ Mutex::Mutex() {
 #endif
 }
 
-Mutex::~Mutex() {
+CMutex::~CMutex() {
 #ifdef WIN32
-	CloseHandle(m_mutexHandle);
+	DeleteCriticalSection(&m_mutexHandle);
 #else
 	pthread_mutex_destroy(&m_mutexHandle);
 #endif
-	m_pInstance = NULL;
-	m_gEnable = false;
 }
 
-Mutex* Mutex::getInstance() {
-	if (m_pInstance == NULL) {
-		m_pInstance = new Mutex();
-	}
-	return m_pInstance;
-}
 
-void Mutex::_lockMutex() {
-	if (m_gEnable) {
+void CMutex::Lock() {
 #ifdef WIN32
-		WaitForSingleObject(m_mutexHandle, INFINITE);
+	EnterCriticalSection(&m_mutexHandle);
 #else
-		pthread_mutex_lock(&m_mutexHandle);
+	pthread_mutex_lock(&m_mutexHandle);
 #endif
-	}
 }
 
-void Mutex::_unlockMutex() {
-	if (m_gEnable) {
+void CMutex::Unlock() {
 #ifdef WIN32
-		ReleaseMutex(m_mutexHandle);
+	LeaveCriticalSection(&m_mutexHandle);
 #else
-		pthread_mutex_unlock(&m_mutexHandle);
+	pthread_mutex_unlock(&m_mutexHandle);
 #endif
-	}
 }

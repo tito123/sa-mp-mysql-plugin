@@ -4,12 +4,12 @@
     <LocalDebuggerCommand>D:\MySQL R8 Testing\samp-server.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LocalDebuggerWorkingDirectory>"D:\MySQL R8 Testing"</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>D:\MySQL R8 Testing</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerCommand>D:\MySQL R8 Testing\samp-server.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>"D:\MySQL R8 Testing"</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>D:\MySQL R8 Testing</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>

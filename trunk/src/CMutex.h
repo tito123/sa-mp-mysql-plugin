@@ -1,25 +1,33 @@
 #pragma once
 
-#include "main.h"
+#ifndef INC_CMUTEX_H
+#define INC_CMUTEX_H
 
-class Mutex {
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#else
+#include "pthread.h"
+#include <unistd.h>
+#endif
+
+class CMutex {
 
 public:
-	static bool m_gEnable;
-	static Mutex* getInstance();
-	void _lockMutex();
-	void _unlockMutex();
-	~Mutex();
+	void Lock();
+	void Unlock();
 
-protected:
-	Mutex();
+	CMutex();
+	~CMutex();
 
 private:
-	static Mutex* m_pInstance;
 #ifdef WIN32
-	HANDLE m_mutexHandle;
+	CRITICAL_SECTION m_mutexHandle;
 #else
 	pthread_mutex_t m_mutexHandle;
 #endif
 
 };
+
+#endif
