@@ -19,41 +19,48 @@ queue <CMySQLHandle*> CMySQLQuery::ReconnectQueue;
 extern bool MultiThreading;
 
 
-void CMySQLResult::GetFieldName(unsigned int idx, string &dest) {
+unsigned int CMySQLResult::GetFieldName(unsigned int idx, string &dest) {
 	if (idx < m_FieldNames.size()) {
 		dest.assign(m_FieldNames.at(idx));
 		Native::Log(LOG_DEBUG, "CMySQLResult::GetFieldName() - Result: \"%s\"", dest.c_str());
+		return m_FieldDataTypes.at(idx);
 	}
 	else {
 		dest.assign("NULL");
 		Native::Log(LOG_WARNING, "CMySQLResult::GetFieldName() - Invalid field index.");
+		return TYPE_STRING;
 	}
 }
 
-void CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, string &dest) {
+unsigned int CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, string &dest) {
 	if(row < m_Rows && fieldidx < m_Fields) {
 		dest.assign(m_Data.at(row)->at(fieldidx));
 		Native::Log(LOG_DEBUG, "CMySQLResult::GetRowData() - Result: \"%s\"", dest.c_str());
+		return m_FieldDataTypes.at(fieldidx);
 	}
 	else {
 		dest.assign("NULL");
 		Native::Log(LOG_WARNING, "CMySQLResult::GetRowData() - Invalid row or field index.");
+		return TYPE_STRING;
 	}
 }
 
-void CMySQLResult::GetRowDataByName(unsigned int row, string field, string &dest) {
+unsigned int CMySQLResult::GetRowDataByName(unsigned int row, string field, string &dest) {
 	if (row < m_Rows && m_Fields > 0) {
 		for (unsigned int i = 0; i < m_Fields; ++i) {
 			if (!strcmp(m_FieldNames.at(i), field.c_str())) {
+			//if(memcmp(m_FieldNames.at(i), field.c_str(), field.length()) == 0) {
 				dest.assign(m_Data.at(row)->at(i));
 				Native::Log(LOG_DEBUG, "CMySQLResult::GetRowDataByName() - Result: \"%s\"", dest.c_str());
-				return ;
+				return m_FieldDataTypes.at(i);
 			}
 		}
 		Native::Log(LOG_WARNING, "CMySQLResult::GetRowDataByName() - Field not found.");
 	}
 	else
 		Native::Log(LOG_WARNING, "CMySQLResult::GetRowDataByName() - Invalid row index.");
+	dest.assign("NULL");
+	return TYPE_STRING;
 }
 
 CMySQLResult::CMySQLResult() {
@@ -296,7 +303,7 @@ void CMySQLQuery::ExecuteT() {
 			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Query was successful.", Callback->Name.c_str());
 
 			MYSQL_RES *SQLResult;
-			MYSQL_FIELD * SQLField;
+			MYSQL_FIELD *SQLFields;
 			MYSQL_ROW SQLRow;
 
 			SQLResult = mysql_store_result(ConnPtr);
@@ -308,15 +315,40 @@ void CMySQLQuery::ExecuteT() {
 				Result->m_Rows = mysql_num_rows(SQLResult);
 				Result->m_Fields = mysql_num_fields(SQLResult);
 				Result->m_Data.reserve((unsigned int)Result->m_Rows+1);
+				Result->m_FieldNames.reserve(Result->m_Fields+1);
 				Result->m_WarningCount = mysql_warning_count(ConnPtr);
 
 				char *szField = NULL;
-				while ((SQLField = mysql_fetch_field(SQLResult))) {
-					szField = new char[SQLField->name_length+1];
-					memset(szField, '\0', (SQLField->name_length + 1));
-					strcpy(szField, SQLField->name);
+				SQLFields = mysql_fetch_fields(SQLResult);
+				for(unsigned int f=0; f < Result->m_Fields; f++) {
+					szField = new char[SQLFields[f].name_length+1];
+					memset(szField, '\0', (SQLFields[f].name_length + 1));
+					strcpy(szField, SQLFields[f].name);
 					Result->m_FieldNames.push_back(szField);
+
+					switch(SQLFields[f].type) {
+						case MYSQL_TYPE_DECIMAL:
+						case MYSQL_TYPE_LONG:
+						case MYSQL_TYPE_TINY:
+						case MYSQL_TYPE_SHORT:
+						case MYSQL_TYPE_TIMESTAMP:
+						case MYSQL_TYPE_INT24:
+						case MYSQL_TYPE_LONGLONG:
+						case MYSQL_TYPE_NULL:
+						case MYSQL_TYPE_YEAR:
+						case MYSQL_TYPE_BIT:
+							Result->m_FieldDataTypes.push_back(TYPE_INT);
+							break;
+						case MYSQL_TYPE_FLOAT:
+						case MYSQL_TYPE_DOUBLE:
+						case MYSQL_TYPE_NEWDECIMAL:
+							Result->m_FieldDataTypes.push_back(TYPE_FLOAT);
+							break;
+						default:
+							Result->m_FieldDataTypes.push_back(TYPE_STRING);
+					}
 				}
+				
 
 				while (SQLRow = mysql_fetch_row(SQLResult)) {
 					unsigned long *lengths = mysql_fetch_lengths(SQLResult);
