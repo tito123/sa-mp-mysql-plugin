@@ -27,7 +27,7 @@
  
 
 list<AMX *> p_Amx;
-void **ppPluginData; 
+void **ppPluginData;  
 extern void	*pAMXFunctions;
 extern logprintf_t logprintf;
 
@@ -35,8 +35,9 @@ bool
 	MultiThreading = false,
 	ThreadRunning = true;
 
+ 
 
-boost::threadpool::pool QueryTPool(1);
+boost::threadpool::pool *QueryTPool = NULL;
 
 
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports() {
@@ -47,13 +48,13 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
 	logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 	
-	logprintf(" >> plugin.mysql: R23 successfully loaded.");
-	Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
-
-
 	boost::thread QueryThread(CMySQLQuery::ProcessQueryT);
 	QueryThread.detach();
 	
+	std::ios_base::sync_with_stdio(false);
+
+	logprintf(" >> plugin.mysql: R24 successfully loaded.");
+	Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
 	return 1;
 }
 
@@ -64,7 +65,7 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload() {
 	ThreadRunning = false;
 	while(ThreadRunning == false) { SLEEP(30); }
 	p_Amx.clear();
-	
+	delete QueryTPool;
 
 	logprintf("plugin.mysql: Plugin unloaded."); 
 }
@@ -114,13 +115,13 @@ void CMySQLQuery::ProcessQueryT()
 		CMySQLQuery *Query = NULL;
 		while( (Query = GetNextQuery()) != NULL) {
 			if(MultiThreading == true)
-				QueryTPool.schedule(boost::bind(&ExecuteT, Query));
+				QueryTPool->schedule(boost::bind(&ExecuteT, Query));
 			else
 				Query->ExecuteT();
 		}
 
 		if(MultiThreading == true)
-			QueryTPool.wait(0);
+			QueryTPool->wait(0);
 		
 		//disconnect queue
 		CMySQLHandle::SQLHandleMutex.Lock();
@@ -143,16 +144,16 @@ void CMySQLQuery::ProcessQueryT()
 
 	//Delete/unload all things
 	if(MultiThreading == true) {
-		int PendingQueries = QueryTPool.pending() + QueryTPool.active();
+		int PendingQueries = QueryTPool->pending() + QueryTPool->active();
 		if(PendingQueries > 0) {
 			logprintf("plugin.mysql: There are still %d queries left, waiting for execution...", PendingQueries);
-			QueryTPool.wait(0);
+			QueryTPool->wait(0);
 			logprintf("plugin.mysql: All queries were executed.");
 		}
 	}
 
 
-	CMySQLQuery::QueryMutex.Lock();
+	CMySQLQuery::QueryMutex.Lock(); 
 	CMySQLHandle::SQLHandleMutex.Lock();
 	CCallback::CallbackMutex.Lock();
 

@@ -10,6 +10,8 @@
 #include "malloc.h"
 #include <cmath>
 
+#include "boost/threadpool.hpp"
+
 
 map<int, CMySQLHandle*> CMySQLHandle::SQLHandle;
 
@@ -22,11 +24,13 @@ static const char LogFileName[] = "mysql_log.txt";
 
 
 extern bool MultiThreading;
+extern boost::threadpool::pool *QueryTPool;
 
 // native mysql_mt(bool:toggle);
 cell AMX_NATIVE_CALL Native::mysql_mt(AMX* amx, cell* params) {
 	Log(LOG_DEBUG, ">> mysql_mt()");
 	
+	QueryTPool = new boost::threadpool::pool(6);
 	MultiThreading = !!(params[1]);
 	
 	Log(LOG_DEBUG, "MultiThreading %s.", MultiThreading == true ? "enabled" : "disabled"); 
@@ -202,9 +206,9 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 	}
 
 	string RowData;
-	Result->GetRowData(params[1], params[2], RowData);
+	//Result->GetRowData(params[1], params[2], RowData);
 	
-	if(sscanf(RowData.c_str(), "%d", &ReturnVal) != 1) {
+	if(Result->GetRowData(params[1], params[2], RowData) != TYPE_INT || sscanf(RowData.c_str(), "%d", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_row_int(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0;
 	}
@@ -228,10 +232,10 @@ cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 	}
 
 	string RowData;
-	Result->GetRowData(params[1], params[2], RowData);
+	//Result->GetRowData(params[1], params[2], RowData);
 	
 	
-	if(sscanf(RowData.c_str(), "%f", &ReturnVal) != 1) {
+	if(Result->GetRowData(params[1], params[2], RowData) != TYPE_FLOAT ||sscanf(RowData.c_str(), "%f", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_row_float(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0.0f;
 	}
@@ -284,9 +288,9 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 		FieldData;
 	
 	AMX_H->GetString(amx, params[2], FieldName);
-	Result->GetRowDataByName(params[1], FieldName, FieldData);
+	//Result->GetRowDataByName(params[1], FieldName, FieldData);
 
-	if(sscanf(FieldData.c_str(), "%d", &ReturnVal) != 1) {
+	if(Result->GetRowDataByName(params[1], FieldName, FieldData) != TYPE_INT || sscanf(FieldData.c_str(), "%d", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_field_content_int(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0;
 	}
@@ -316,9 +320,9 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 		FieldData;
 	
 	AMX_H->GetString(amx, params[2], FieldName);
-	Result->GetRowDataByName(params[1], FieldName, FieldData);
+	//Result->GetRowDataByName(params[1], FieldName, FieldData);
 
-	if(sscanf(FieldData.c_str(), "%f", &ReturnVal) != 1) {
+	if(Result->GetRowDataByName(params[1], FieldName, FieldData) != TYPE_FLOAT || sscanf(FieldData.c_str(), "%f", &ReturnVal) != 1) {
 		Log(LOG_ERROR, ">> cache_get_field_content_float(...) - An error occured during the datatype conversion.");
 		ReturnVal = 0.0f;
 	}
@@ -424,15 +428,16 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 
 //native mysql_function_query(conhandle, query[], bool:cache, callback[], format[], {Float,_}:...);
 cell AMX_NATIVE_CALL Native::mysql_function_query(AMX* amx, cell* params) {
-	cell *NewParams = new cell[params[0]];
-	NewParams[0] = params[0]-1;
+	cell *NewParams = new cell[params[0]/4];
+	NewParams[0] = params[0]-4;
 	NewParams[1] = params[1];
 	NewParams[2] = params[2];
 	NewParams[3] = params[4];
 	NewParams[4] = params[5];
-	for(int i=6; i < params[0]; ++i)
+	for(int i=6; i <= (params[0]/4); ++i)
 		NewParams[i-1] = params[i];
 	mysql_tquery(amx, NewParams);
+	delete NewParams;
 	return 1;
 }
 

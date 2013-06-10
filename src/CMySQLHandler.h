@@ -27,6 +27,11 @@ using std::string;
 #define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
 	Log(LOG_ERROR, ">> %s() - Invalid connection handle. (ID = %d).", function, id)
 
+enum eFieldDataType {
+	TYPE_INT = 1,
+	TYPE_FLOAT,
+	TYPE_STRING
+};
 
 class CMySQLResult {
 public:
@@ -43,9 +48,9 @@ public:
 		return m_Fields;
 	}
 
-	void GetFieldName(unsigned int idx, string &dest);
-	void GetRowData(unsigned int row, unsigned int fieldidx, string &dest);
-	void GetRowDataByName(unsigned int row, string field, string &dest);
+	unsigned int GetFieldName(unsigned int idx, string &dest);
+	unsigned int GetRowData(unsigned int row, unsigned int fieldidx, string &dest);
+	unsigned int GetRowDataByName(unsigned int row, string field, string &dest);
 
 	my_ulonglong InsertID() {
 		return m_InsertID;
@@ -65,6 +70,7 @@ private:
 
 	vector<vector<char*>* > m_Data;
 	vector<char*> m_FieldNames;
+	vector<unsigned int> m_FieldDataTypes;
 
 	my_ulonglong m_InsertID, m_AffectedRows;
 
@@ -179,9 +185,6 @@ public:
 		return Query;
 	}
 
-
-	//static void ExecuteT(CMySQLQuery *query, MYSQL *connptr);
-	//void operator()();
 	void ExecuteT();
 
 

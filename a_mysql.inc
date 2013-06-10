@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R23
+ * MySQL plugin R24
  */
 
 #if defined mysql_included
@@ -86,6 +86,7 @@ native cache_insert_id(connectionHandle = 1);
 native cache_warning_count(connectionHandle = 1);
 
 
+// Wrappers for cache functions
 stock mysql_reload(connectionHandle = 1) {
 	mysql_tquery(connectionHandle, "FLUSH PRIVILEGES", "", "");
 	return 1;

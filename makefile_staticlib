@@ -1,9 +1,9 @@
-GPP=g++
-GCC=gcc
+GPP=g++ -m32
+GCC=gcc -m32
 
 OUTFILE="bin/mysql_static.so"
 
-COMPILE_FLAGS=-c -m32 -O3 -w -DLINUX -Wall -Isrc/SDK/amx/ -Isrc/
+COMPILE_FLAGS=-c -O3 -w -DLINUX -Wall -Isrc/SDK/amx/ -Isrc/ -fpermissive
 
 all:
 	@echo Compiling..
