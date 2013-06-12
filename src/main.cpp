@@ -53,7 +53,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	
 	std::ios_base::sync_with_stdio(false);
 
-	logprintf(" >> plugin.mysql: R24 successfully loaded.");
+	logprintf(" >> plugin.mysql: R25 successfully loaded.");
 	Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
 	return 1;
 }

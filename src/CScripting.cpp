@@ -10,6 +10,7 @@
 #include "malloc.h"
 #include <cmath>
 
+
 #include "boost/threadpool.hpp"
 
 
@@ -30,8 +31,10 @@ extern boost::threadpool::pool *QueryTPool;
 cell AMX_NATIVE_CALL Native::mysql_mt(AMX* amx, cell* params) {
 	Log(LOG_DEBUG, ">> mysql_mt()");
 	
-	QueryTPool = new boost::threadpool::pool(6);
+	
 	MultiThreading = !!(params[1]);
+	if(MultiThreading == true && QueryTPool == NULL)
+		QueryTPool = new boost::threadpool::pool(6);
 	
 	Log(LOG_DEBUG, "MultiThreading %s.", MultiThreading == true ? "enabled" : "disabled"); 
 	return 1;
