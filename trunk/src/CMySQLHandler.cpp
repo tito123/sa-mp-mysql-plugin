@@ -289,6 +289,7 @@ CMySQLQuery::CMySQLQuery() {
 	Callback = NULL;
 }
 
+extern logprintf_t logprintf;
 //void CMySQLQuery::ExecuteT(CMySQLQuery *query, MYSQL *connptr) {
 void CMySQLQuery::ExecuteT() {
 	Result = NULL;
@@ -303,13 +304,14 @@ void CMySQLQuery::ExecuteT() {
 			Native::Log(LOG_DEBUG, "ExecuteT(%s) - Query was successful.", Callback->Name.c_str());
 
 			MYSQL_RES *SQLResult;
-			MYSQL_FIELD *SQLFields;
-			MYSQL_ROW SQLRow;
 
 			SQLResult = mysql_store_result(ConnPtr);
 			MySQLMutex.Unlock();
 
 			if ( SQLResult != NULL) {
+				MYSQL_FIELD *SQLField;
+				MYSQL_ROW SQLRow;
+
 				Result = new CMySQLResult;
 
 				Result->m_Rows = mysql_num_rows(SQLResult);
@@ -319,15 +321,13 @@ void CMySQLQuery::ExecuteT() {
 				Result->m_WarningCount = mysql_warning_count(ConnPtr);
 
 				char *szField = NULL;
-				SQLFields = mysql_fetch_fields(SQLResult);
-				for(unsigned int f=0; f < Result->m_Fields; f++) {
-					szField = new char[SQLFields[f].name_length+1];
-					memset(szField, '\0', (SQLFields[f].name_length + 1));
-					strcpy(szField, SQLFields[f].name);
+				while ((SQLField = mysql_fetch_field(SQLResult))) {
+					szField = new char[SQLField->name_length+1];
+					memset(szField, '\0', (SQLField->name_length + 1));
+					strcpy(szField, SQLField->name);
 					Result->m_FieldNames.push_back(szField);
 
-					switch(SQLFields[f].type) {
-						case MYSQL_TYPE_DECIMAL:
+					switch(SQLField->type) {
 						case MYSQL_TYPE_LONG:
 						case MYSQL_TYPE_TINY:
 						case MYSQL_TYPE_SHORT:
@@ -342,6 +342,7 @@ void CMySQLQuery::ExecuteT() {
 						case MYSQL_TYPE_FLOAT:
 						case MYSQL_TYPE_DOUBLE:
 						case MYSQL_TYPE_NEWDECIMAL:
+						case MYSQL_TYPE_DECIMAL:
 							Result->m_FieldDataTypes.push_back(TYPE_FLOAT);
 							break;
 						default:
