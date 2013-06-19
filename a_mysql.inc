@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R25
+ * MySQL plugin R26
  */
 
 #if defined mysql_included
@@ -30,6 +30,11 @@ enum e_LogLevel {
 	LOG_DEBUG = 4
 };
 
+enum e_LogType {
+	LOG_TYPE_TEXT = 1,
+	LOG_TYPE_HTML = 2
+};
+
 
 #define mysql_insert_id cache_insert_id
 #define mysql_affected_rows cache_affected_rows
@@ -51,8 +56,7 @@ enum e_LogLevel {
 
 
 // Natives
-native mysql_mt(bool:toggle); //disabled by default
-native mysql_log(loglevel);
+native mysql_log(loglevel = LOG_ERROR | LOG_WARNING, logtype = LOG_TYPE_TEXT);
 native mysql_connect(const host[], const user[], const database[], const password[], port = 3306);
 native mysql_close(connectionHandle = 1);
 native mysql_reconnect(connectionHandle = 1);

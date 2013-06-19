@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Defines that are unique to the embedded version of MySQL */
+#ifdef _WIN32
+#define SERVICE_VERSION __declspec(dllexport) void *
+#else
+#define SERVICE_VERSION void *
+#endif
 
-#ifdef EMBEDDED_LIBRARY
+#define VERSION_my_snprintf     0x0100
+#define VERSION_thd_alloc       0x0100
 
-/* Things we don't need in the embedded version of MySQL */
-/* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
-
-#undef HAVE_PSTACK				/* No stacktrace */
-#undef HAVE_DLOPEN				/* No udf functions */
-#undef HAVE_OPENSSL
-#undef HAVE_SMEM				/* No shared memory */
-#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
-
-#define DONT_USE_RAID
-
-#endif /* EMBEDDED_LIBRARY */
