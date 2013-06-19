@@ -1,20 +1,27 @@
 #pragma once
 
 #include "main.h"
-#include "CMySQLHandler.h"
+#include "CMySQLHandle.h"
 #include "CScripting.h"
+#include "CMySQLQuery.h"
+#include "CCallback.h"
+#include "CLog.h"
 
 #include "malloc.h"
 #include <cstring>
 
+
+#define BOOST_THREAD_DONT_USE_CHRONO
 #include "boost/thread.hpp"
 #include "boost/threadpool.hpp"
+
+boost::threadpool::pool *ThreadPool = NULL;
 
 
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#include "Windows.h"
+#include "Windows.h" 
 
 #define SLEEP(x) { Sleep(x); }
 #else
@@ -31,13 +38,9 @@ void **ppPluginData;
 extern void	*pAMXFunctions;
 extern logprintf_t logprintf;
 
-bool 
-	MultiThreading = false,
+bool
 	ThreadRunning = true;
 
- 
-
-boost::threadpool::pool *QueryTPool = NULL;
 
 
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports() {
@@ -53,20 +56,30 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	
 	std::ios_base::sync_with_stdio(false);
 
-	logprintf(" >> plugin.mysql: R25 successfully loaded.");
-	Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
+	unsigned int NumThreads = boost::thread::hardware_concurrency();
+	if(NumThreads >= 3) {
+		ThreadPool = new boost::threadpool::pool(NumThreads);
+		logprintf(" >> plugin.mysql: running on %d threads.", NumThreads);
+	}
+	else
+		logprintf(" >> plugin.mysql: Multi-Threading is deactivated due to bad CPU.");
+
+	CLog::Get()->Initialize("mysql_log.txt");
+
+	logprintf(" >> plugin.mysql: R26 successfully loaded.");
+	//Native::Log(LOG_DEBUG, "Plugin succesfully loaded!");
 	return 1;
 }
 
 PLUGIN_EXPORT void PLUGIN_CALL Unload() {
-	Native::Log(LOG_DEBUG, "Unloading Plugin");
+	//Native::Log(LOG_DEBUG, "Unloading Plugin");
 	logprintf("plugin.mysql: Unloading plugin...");
 
 	ThreadRunning = false;
 	while(ThreadRunning == false) { SLEEP(30); }
 	p_Amx.clear();
-	delete QueryTPool;
 
+	CLog::Delete();
 	logprintf("plugin.mysql: Plugin unloaded."); 
 }
 
@@ -78,8 +91,9 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick() {
 void CMySQLQuery::ProcessQueryT()
 {
 	if (mysql_library_init(0, NULL, NULL)) {
-		logprintf("plugin.mysql: Couldn't initialize MySQL library.");
-		Native::Log(LOG_ERROR, "Plugin failed to load due to unitialized MySQL library (libmysql probably missing).");
+		//logprintf("plugin.mysql: Couldn't initialize MySQL library.");
+		//Native::Log(LOG_ERROR, "Plugin failed to load due to unitialized MySQL library (libmysql probably missing).");
+		logprintf("plugin.mysql: Plugin failed to load due to uninitialized MySQL library (libmysql probably missing).");
 		exit(0);
 		return ;
 	}
@@ -111,51 +125,43 @@ void CMySQLQuery::ProcessQueryT()
 		}
 		CMySQLHandle::SQLHandleMutex.Unlock();
 
+
 		//executing queries
 		CMySQLQuery *Query = NULL;
+		static unsigned int QueryCounter;
 		while( (Query = GetNextQuery()) != NULL) {
-			if(MultiThreading == true)
-				QueryTPool->schedule(boost::bind(&ExecuteT, Query));
+			if(ThreadPool != NULL)
+				ThreadPool->schedule(boost::bind(&ExecuteT, Query));
+				//ThreadPool->size_controller().resize(44);
 			else
 				Query->ExecuteT();
 		}
-
-		if(MultiThreading == true)
-			QueryTPool->wait(0);
 		
+
 		//disconnect queue
 		CMySQLHandle::SQLHandleMutex.Lock();
-		CCallback::CallbackMutex.Lock();
+		//CCallback::CallbackMutex.Lock();
 		while(!DisconnectQueue.empty()) {
 			CMySQLHandle *Handle = DisconnectQueue.front();
 			DisconnectQueue.pop();
 
+			if(ThreadPool != NULL)
+				ThreadPool->wait(0);
 
 			Handle->DisconnectT();
 			CMySQLHandle::SQLHandle.erase(Handle->m_CID);
 			delete Handle;
 		}
 		CMySQLHandle::SQLHandleMutex.Unlock();
-		CCallback::CallbackMutex.Unlock();
+		//CCallback::CallbackMutex.Unlock();
 		
 		SLEEP(10);
 	}
 
 
-	//Delete/unload all things
-	if(MultiThreading == true) {
-		int PendingQueries = QueryTPool->pending() + QueryTPool->active();
-		if(PendingQueries > 0) {
-			logprintf("plugin.mysql: There are still %d queries left, waiting for execution...", PendingQueries);
-			QueryTPool->wait(0);
-			logprintf("plugin.mysql: All queries were executed.");
-		}
-	}
-
-
-	CMySQLQuery::QueryMutex.Lock(); 
+	//CMySQLQuery::QueryMutex.Lock(); 
 	CMySQLHandle::SQLHandleMutex.Lock();
-	CCallback::CallbackMutex.Lock();
+	//CCallback::CallbackMutex.Lock();
 
 	for(map<int, CMySQLHandle *>::iterator i = CMySQLHandle::SQLHandle.begin(); i != CMySQLHandle::SQLHandle.end(); ++i) {
 		i->second->DisconnectT();
@@ -163,15 +169,23 @@ void CMySQLQuery::ProcessQueryT()
 	}
 	CMySQLHandle::SQLHandle.clear();
 
-	while(!CMySQLQuery::m_QueryQueue.empty()) {
-		delete CMySQLQuery::m_QueryQueue.front();
-		CMySQLQuery::m_QueryQueue.pop();
+	CMySQLQuery *tmpQuery = NULL;
+	while(m_QueryQueue.pop(tmpQuery)) {
+		delete tmpQuery;
+		tmpQuery = NULL;
+		//delete CMySQLQuery::m_QueryQueue.front();
+		//CMySQLQuery::m_QueryQueue.pop();
 	}
 	
-	while(!CCallback::CallbackQueue.empty()) {
+	CCallback *tmpCallback = NULL;
+	while(CCallback::CallbackQueue.pop(tmpQuery)) {
+		delete tmpCallback;
+		tmpCallback = NULL;
+	}
+	/*while(!CCallback::CallbackQueue.empty()) {
 		delete CCallback::CallbackQueue.front();
 		CCallback::CallbackQueue.pop();
-	}
+	}*/
 	
 	/*
 	CMySQLQuery::QueryMutex.Unlock();
@@ -186,7 +200,6 @@ void CMySQLQuery::ProcessQueryT()
 extern "C"
 #endif
 const AMX_NATIVE_INFO MySQLNatives[] = {
-	{"mysql_mt",						Native::mysql_mt},
 	{"mysql_log",						Native::mysql_log}, 
 	{"mysql_connect",					Native::mysql_connect},
 	{"mysql_close",						Native::mysql_close},

@@ -10,7 +10,6 @@
 
 
 namespace Native {
-	cell AMX_NATIVE_CALL mysql_mt(AMX* amx, cell *params);
 	cell AMX_NATIVE_CALL mysql_log(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_connect(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_close(AMX* amx, cell* params);
@@ -46,15 +45,10 @@ namespace Native {
 	cell AMX_NATIVE_CALL cache_warning_count(AMX* amx, cell* params);
 
 	//Other functions
-	void Log(unsigned int level, char* text, ...);
+	//void Log(unsigned int level, char* text, ...);
 };
 
-enum e_LogLevel {
-	LOG_NONE = 0,
-	LOG_ERROR = 1,
-	LOG_WARNING = 2,
-	LOG_DEBUG = 4
-};
+
 
 
 #endif

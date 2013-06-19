@@ -92,11 +92,14 @@
     </ClInclude>
     <ClInclude Include="src\CAmxString.h" />
     <ClInclude Include="src\CMutex.h" />
-    <ClInclude Include="src\CMySQLHandler.h" />
     <ClInclude Include="src\CScripting.h" />
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\misc.h" />
     <ClInclude Include="src\CCallback.h" />
+    <ClInclude Include="src\CMySQLQuery.h" />
+    <ClInclude Include="src\CMySQLResult.h" />
+    <ClInclude Include="src\CMySQLHandle.h" />
+    <ClInclude Include="src\CLog.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\SDK\amx\getch.c">
@@ -106,12 +109,15 @@
       <Filter>SDK</Filter>
     </ClCompile>
     <ClCompile Include="src\CMutex.cpp" />
-    <ClCompile Include="src\CMySQLHandler.cpp" />
     <ClCompile Include="src\CScripting.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\misc.cpp" />
     <ClCompile Include="src\CAmxString.cpp" />
     <ClCompile Include="src\CCallback.cpp" />
+    <ClCompile Include="src\CMySQLQuery.cpp" />
+    <ClCompile Include="src\CMySQLResult.cpp" />
+    <ClCompile Include="src\CMySQLHandle.cpp" />
+    <ClCompile Include="src\CLog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\mysql_include\libmysql.def">

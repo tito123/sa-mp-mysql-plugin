@@ -2,10 +2,18 @@
 
 #include "main.h"
 #include "CCallback.h"
-#include "CMySQLHandler.h"
+#include "CMySQLHandle.h"
+#include "CMySQLQuery.h"
+#include "CMySQLResult.h"
+#include "CLog.h"
 
-CMutex CCallback::CallbackMutex;
-queue<CMySQLQuery*> CCallback::CallbackQueue;
+//CMutex CCallback::CallbackMutex;
+//queue<CMySQLQuery*> CCallback::CallbackQueue;
+boost::lockfree::queue<
+		CMySQLQuery*, 
+		boost::lockfree::fixed_sized<true>,
+		boost::lockfree::capacity<10000>
+	> CCallback::CallbackQueue;
 
 void CCallback::ProcessCallbacks() {
 	CMySQLQuery *Query = NULL;
@@ -19,8 +27,9 @@ void CCallback::ProcessCallbacks() {
 				cell amx_Address = -1;
 				if (amx_FindPublic( (*a), Callback->Name.c_str(), &amx_Index) == AMX_ERR_NONE) { 
 						
-					Native::Log(LOG_DEBUG, "%s(%s) - Callback is being called..", Callback->Name.c_str(), Callback->ParamFormat.c_str());
-					
+					//Native::Log(LOG_DEBUG, "%s(%s) - Callback is being called..", Callback->Name.c_str(), Callback->ParamFormat.c_str());
+					CLog::Get()->StartCallback(Callback->Name.c_str());
+
 					int StringIndex = Callback->ParamFormat.length()-1; 
 					while(!Callback->Parameters.empty() && StringIndex >= 0) {
 						switch(Callback->ParamFormat.at(StringIndex)) {
@@ -60,7 +69,8 @@ void CCallback::ProcessCallbacks() {
 						delete Result;
 					Query->ConnHandle->SetNewResult(NULL);
 					
-					Native::Log(LOG_DEBUG, "ProcessCallbacks() - The result has been cleared.");
+					CLog::Get()->EndCallback();
+					//Native::Log(LOG_DEBUG, "ProcessCallbacks() - The result has been cleared.");
 
 				}
 			}
