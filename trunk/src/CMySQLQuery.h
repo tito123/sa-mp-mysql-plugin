@@ -11,7 +11,6 @@ using std::queue;
 using std::string;
 
 
-//#include "CMySQLResult.h"
 #include "CMySQLHandle.h"
 
 class CCallback;
@@ -21,7 +20,12 @@ class CMySQLQuery {
 public:
 	static void ProcessQueryT();
 	
-	CMySQLQuery();
+	CMySQLQuery() :
+		ConnHandle(NULL),
+		ConnPtr(NULL),
+		Result(NULL),
+		Callback(NULL)
+	{ }
 	~CMySQLQuery() {}
 	CMySQLQuery(const CMySQLQuery &rhs) {
 		Query = rhs.Query;
@@ -39,26 +43,17 @@ public:
 	}
 	
 	string Query;
-	
 	CMySQLHandle *ConnHandle;
 	MYSQL *ConnPtr;
+
 	CMySQLResult *Result;
 	CCallback *Callback;
 
 	static void PushQuery(CMySQLQuery *query) {
-		//QueryMutex.Lock();
 		m_QueryQueue.push(query);
-		//QueryMutex.Unlock();
 	}
 
 	static CMySQLQuery *GetNextQuery() {
-		/*QueryMutex.Lock();
-		CMySQLQuery *Query = NULL;
-		if(!m_QueryQueue.empty()) {
-			Query = m_QueryQueue.front();
-			m_QueryQueue.pop();
-		}
-		QueryMutex.Unlock();*/
 		CMySQLQuery *Query = NULL;
 		m_QueryQueue.pop(Query);
 		return Query;
@@ -82,10 +77,9 @@ public:
 		ReconnectQueue.push(handle);
 		CMySQLHandle::SQLHandleMutex.Unlock();
 	}
+
 private:
 	static CMutex MySQLMutex;
-	//static CMutex QueryMutex;
-	//static queue<CMySQLQuery*> m_QueryQueue;
 	static boost::lockfree::queue<
 			CMySQLQuery*, 
 			boost::lockfree::fixed_sized<true>,

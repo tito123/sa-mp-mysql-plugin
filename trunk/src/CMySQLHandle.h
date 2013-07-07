@@ -12,12 +12,9 @@
 #endif
 #include "mysql_include/mysql.h"
 
-//#include "CScripting.h"
 #include "CMutex.h"
-//#include "CCallback.h"
 
 
-//using std::stringstream;
 using std::string;
 using std::map;
 
@@ -37,14 +34,15 @@ class CMySQLResult;
 class CMySQLHandle {
 public:
 	friend class CMySQLQuery;
+	friend class CCallback;
 	
 	CMySQLHandle(string host, string user, string passw, string db, size_t port);
 	~CMySQLHandle();
 
 	static bool IsValid(int id);
 
-	bool ConnectT(); //should only be called in the thread
-	void DisconnectT(); //should only be called in the thread
+	bool ConnectT(); //should not be called in main thread
+	void DisconnectT(); //should not be called in main thread
 
 
 	static int Create(string host, string user, string pass, string db, size_t port);
@@ -52,7 +50,6 @@ public:
 	static CMySQLHandle *GetHandle(int cid) {
 		SQLHandleMutex.Lock();
 		CMySQLHandle *Result = NULL;
-		//if(IsValid(cid))
 		Result = SQLHandle.at(cid);
 		SQLHandleMutex.Unlock();
 		return Result;
@@ -80,17 +77,19 @@ public:
 	bool DeleteSavedResult(int resultid);
 	bool SetActiveResult(int resultid);
 
-	inline CMySQLResult *GetResult() {
+	inline CMySQLResult *GetResult() const {
 		return m_ActiveResult;
 	}
 
-	inline bool IsActiveResultSaved() {
+	inline bool IsActiveResultSaved() const {
 		return m_ActiveResultID > 0 ? true : false;
 	}
 
-	inline int GetID() {
+	inline int GetID() const {
 		return m_CID;
 	}
+
+	
 private:
 	static CMutex SQLHandleMutex;
 	static map<int, CMySQLHandle *> SQLHandle;

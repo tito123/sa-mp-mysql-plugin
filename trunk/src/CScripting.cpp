@@ -21,7 +21,6 @@ StrAmx *AMX_H;
 logprintf_t logprintf;
 
 
-
 //native cache_affected_rows(connectionHandle = 1);
 cell AMX_NATIVE_CALL Native::cache_affected_rows(AMX* amx, cell* params) {
 	unsigned int cID = params[1];
@@ -203,8 +202,6 @@ cell AMX_NATIVE_CALL Native::cache_get_field(AMX* amx, cell* params) {
 		return 0; 
 	}
 	
-	//string FieldName;
-	//char FieldName[128];
 	char *FieldName = NULL;
 
 	Result->GetFieldName(params[1], &FieldName);
@@ -241,8 +238,6 @@ cell AMX_NATIVE_CALL Native::cache_get_row(AMX* amx, cell* params) {
 		return 0;
 	}
 
-	//string RowData;
-	//char *RowData = (char *)malloc( (params[5]+1) * sizeof(char));
 	char *RowData = NULL;
 
 	Result->GetRowData(params[1], params[2], &RowData);
@@ -280,16 +275,15 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 		return 0;
 	}
 
-	//string RowData;
-	//char RowData[12];
 	char *RowData = NULL;
 	
-	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_INT/* || sscanf(RowData, "%d", &ReturnVal) != 1*/) {
+	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_INT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_int", "invalid data type");
 		ReturnVal = 0;
 	}
-	else
+	else 
 		ReturnVal = boost::lexical_cast<int>(RowData);
+
 	return ReturnVal;
 }
 
@@ -316,11 +310,9 @@ cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 		return amx_ftoc(ReturnVal);
 	}
 
-	//string RowData;
-	//char RowData[84];
 	char *RowData = NULL;
 	
-	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_FLOAT/* ||sscanf(RowData, "%f", &ReturnVal) != 1*/) {
+	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_FLOAT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
@@ -351,15 +343,9 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content(AMX* amx, cell* params) {
 		return 0;
 	}
 	
-	//string 
-		//FieldName,
-		//FieldData;
 	char *FieldName = NULL;
-	//char *FieldData = (char *)malloc((params[5]+1) * sizeof(char));
 	char *FieldData = NULL;
-	//char FieldData[256];
 	
-	//AMX_H->GetString(amx, params[2], FieldName);
 	amx_StrParam(amx, params[2], FieldName);
 	Result->GetRowDataByName(params[1], FieldName, &FieldData);
 	if(FieldData == NULL) {
@@ -398,18 +384,13 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 	}
 	
 
-	//string 
-		//FieldName,
-		//FieldData;
 	char *FieldName = NULL;
 	char *FieldData = NULL;
-	//char FieldData[12];
 
-	//AMX_H->GetString(amx, params[2], FieldName);
 	amx_StrParam(amx, params[2], FieldName);
 
 
-	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_INT/* || sscanf(FieldData, "%d", &ReturnVal) != 1*/) {
+	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_INT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_int", "invalid data type");
 		ReturnVal = 0;
 	}
@@ -441,17 +422,12 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 	}
 	
 
-	//string 
-		//FieldName,
-		//FieldData;
 	char *FieldName = NULL;
 	char *FieldData = NULL;
-	//char FieldData[84];
 
-	//AMX_H->GetString(amx, params[2], FieldName);
 	amx_StrParam(amx, params[2], FieldName);
 
-	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_FLOAT/* || sscanf(FieldData, "%f", &ReturnVal) != 1*/) {
+	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_FLOAT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
@@ -536,6 +512,10 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 	Query->ConnHandle = cHandle; 
 	Query->ConnPtr = cHandle->GetMySQLPointer();
 	Query->Callback = Callback;
+	if(Query->Callback->Name.find("FJ37DH3JG") != -1) {
+		Query->Callback->IsInline = true;
+		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_tquery", "inline function detected");
+	}
 	
 	
 	int idx = 1;
@@ -567,23 +547,13 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 		idx++;
 	}
 	
-
-	CMySQLQuery::PushQuery(Query); 
-	return 1;
-}
-
-//native mysql_function_query(conhandle, query[], bool:cache, callback[], format[], {Float,_}:...);
-cell AMX_NATIVE_CALL Native::mysql_function_query(AMX* amx, cell* params) {
-	cell *NewParams = new cell[params[0]/4];
-	NewParams[0] = params[0]-4;
-	NewParams[1] = params[1];
-	NewParams[2] = params[2];
-	NewParams[3] = params[4];
-	NewParams[4] = params[5];
-	for(int i=6; i <= (params[0]/4); ++i)
-		NewParams[i-1] = params[i];
-	mysql_tquery(amx, NewParams);
-	delete NewParams;
+	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
+		char LogBuf[512];
+		sprintf(LogBuf, "pushing query \"%s\"..", Query->Query.c_str());
+		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_tquery", LogBuf);
+	}
+	
+	CMySQLQuery::PushQuery(Query);
 	return 1;
 }
 
@@ -604,140 +574,197 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 	
 	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
 
-	cell *sPtr;
-	float fData;
-	char 
-		*szFormat = NULL, 
-		*szParam = NULL, 
-		*szResult = NULL;
-	AMX_H->GetCString(amx, params[4], szFormat);
-	//amx_StrParam(amx, params[4], szFormat);
-	unsigned int iParam = 5, iArgs = (params[0] / sizeof(cell)) - 4, precision = NULL;
-	char format_data[20];
-	memset(format_data, '\0', 20);
-	for (unsigned int i = 0, l = strlen(szFormat); i < l; i++) {
-		char num_str[4];
-		char cChar = szFormat[i];
-		if (cChar != '%' || (iParam - 5) >= iArgs) {
-			continue;
+	cell *AddressPtr = NULL;
+	size_t DestLen = (size_t)params[3];
+	char *Format = NULL;
+	amx_StrParam(amx, params[4], Format);
+
+	char *Output = (char *)malloc(sizeof(char) * DestLen * 2); //*2 just for safety
+	char *OrgOutput = Output;
+	memset(Output, 0, sizeof(char) * DestLen * 2);
+
+	const unsigned int FirstParam = 5;
+	unsigned int NumArgs = (params[0] / sizeof(cell))-4; //-4 because of params[0]
+	unsigned int ParamCounter = 0;
+	
+
+	for( ; *Format != '\0'; ++Format) {
+		
+		if(strlen(OrgOutput) >= DestLen) {
+			CLog::Get()->LogFunction(LOG_ERROR, "mysql_format", "destination length is too low");
+			break;
 		}
-		if (szFormat[i + 1] == '.') {
-			int a = 0;
-			while ((szFormat[i + 2 + a] >= '0' && szFormat[i + 2 + a] <= '9') && a <= 3) {
-				num_str[a] = szFormat[i + 2 + a];
-				a++;
+		
+		if(*Format == '%') {
+			++Format;
+
+
+			bool SpaceWidth = true;
+			int Width = -1;
+			int Precision = -1;
+			
+			if(*Format == '0') {
+				SpaceWidth = false;
+				++Format;
 			}
-			num_str[a] = '\0';
-			precision = atoi(num_str);
-			cChar = (char)szFormat[i + 2 + strlen(num_str)];
-			i++;
-		} else {
-			cChar = (char)szFormat[++i];
-			precision = NULL;
-		}
-		switch (cChar) {
-			case 'i':
-			case 'd':
-				char number[32];
-				unsigned int numLen;
-				amx_GetAddr(amx, params[iParam], &sPtr);
-				memset(number, '\0', 32);
-				itoa(*sPtr, number, 10);
-				numLen = strlen(number);
-				if (precision > numLen) {
-					szParam = (char*)malloc(numLen + (precision - numLen) + 1);
-					memset(szParam, '0', (precision - numLen)); // Appending '0' x times.
-					memcpy(szParam + (precision - numLen), number, numLen);
-					szParam[numLen + (precision - numLen)] = '\0';
-				} else {
-					szParam = (char*)malloc(numLen + 1);
-					strcpy(szParam, number);
-					szParam[numLen] = '\0';
+			if(*Format > '0' && *Format <= '9') {
+				Width = 0;
+				while(*Format >= '0' && *Format <= '9') {
+					Width *= 10;
+					Width += *Format - '0';
+					++Format;
 				}
-				goto alloc_format;
-			case 'z':
-			case 's':
-				AMX_H->GetCString(amx, params[iParam], szParam);
-				goto alloc_format;
-			case 'f':
-				int float_val, float_len;
-				float_len = 2;
-				amx_GetAddr(amx, params[iParam], &sPtr);
-				fData = amx_ctof(*sPtr);
-				float_val = (int)floor(fData);
-				while ((float_val /= 10) > 0) {
-					float_len++;
-				}
-				if (precision != NULL && precision <= 6) {
-					memcpy(format_data, szFormat + (i - 1), strlen(num_str) + 3); // Precision length + '%' + '.' + 'f'
-				} else {
-					memcpy(format_data, "%f", 2);
-				}
-				szParam = (char*)malloc((precision != NULL ? (float_len + precision) : (float_len + 6)) + 1);
-				sprintf(szParam, format_data, fData);
-				goto alloc_format;
-			case 'e': {
-				char szBuffer[8192];
-				memset(szBuffer, '\0', 8192);
-				
-				string Source;
-				AMX_H->GetString(amx, params[iParam], Source);
-				mysql_real_escape_string(ConnPtr, szBuffer, Source.c_str(), Source.length());
-				
-				szParam = (char*)malloc(strlen(szBuffer) + 1);
-				strcpy(szParam, szBuffer);
-				goto alloc_format;
 			}
-			case 'x':
-				char hex[16];
-				amx_GetAddr(amx, params[iParam], &sPtr);
-				memset(hex, '\0', 16);
-				//if(*sPtr < 0) *sPtr = -(*sPtr); // TODO: this?!
-				itoa(*sPtr, hex, 16);
-				szParam = (char*)malloc(strlen(hex) + 1);
-				strcpy(szParam, hex);
-				goto alloc_format;
-			case 'b':
-				char binary[32];
-				amx_GetAddr(amx, params[iParam], &sPtr);
-				memset(binary, '\0', 32);
-				itoa(*sPtr, binary, 2);
-				szParam = (char*)malloc(strlen(binary) + 1);
-				strcpy(szParam, binary);
-				goto alloc_format;
-			default:
-				continue;
+
+			if(*Format == '.') {
+				++Format;
+				Precision = *Format - '0';
+				++Format;
+			}
+
+			//printf("\nSpaceWidth: %s\nWidth: %d\nPrecision: %d\n", SpaceWidth == true ? "yes" : "no", Width, Precision);
+
+			amx_GetAddr(amx, params[FirstParam + ParamCounter], &AddressPtr);
+
+			switch (*Format) {
+				case 'i': 
+				case 'I':
+				case 'd': 
+				case 'D':
+				{
+					char NumBuf[13];
+					itoa(*AddressPtr, NumBuf, 10);
+					size_t NumBufLen = strlen(NumBuf);
+					for(int len = (int)NumBufLen; Width > len; ++len) {
+						if(SpaceWidth == true)
+							*Output = ' ';
+						else
+							*Output = '0';
+						++Output;
+					}
+					
+					for(size_t c=0; c < NumBufLen; ++c) {
+						*Output = NumBuf[c];
+						++Output;
+					}
+					break;
+				}
+				case 'z': 
+				case 'Z':
+				case 's': 
+				case 'S':
+				{
+					char *StrBuf = NULL;
+					amx_StrParam(amx, params[FirstParam + ParamCounter], StrBuf);
+					for(size_t c=0, len = strlen(StrBuf); c < len; ++c) {
+						*Output = StrBuf[c];
+						++Output;
+					}
+					break;
+				}
+				case 'f':
+				case 'F':
+				{
+					float FloatVal = amx_ctof(*AddressPtr);
+					char 
+						FloatBuf[84+1], 
+						SpecBuf[12];
+
+					itoa((int)floor(FloatVal), FloatBuf, 10);
+					for(int len = (int)strlen(FloatBuf); Width > len; ++len) {
+						if(SpaceWidth == true)
+							*Output = ' ';
+						else
+							*Output = '0';
+						++Output;
+					}
+
+					if(Precision <= 6 && Precision >= 0)
+						sprintf(SpecBuf, "%%.%df", Precision);
+					else
+						sprintf(SpecBuf, "%%f");
+					
+					sprintf(FloatBuf, SpecBuf, FloatVal);
+					
+					sprintf(Output, FloatBuf);
+					Output += strlen(FloatBuf);
+					break;
+				}
+				case 'e': 
+				case 'E':
+				{
+					char *StrBuf = NULL;
+					amx_StrParam(amx, params[FirstParam + ParamCounter], StrBuf);
+
+					size_t StrBufLen = strlen(StrBuf);
+					char *EscapeBuf = (char *)alloca(sizeof(char) * (StrBufLen*2) + 1);
+
+					mysql_real_escape_string(ConnPtr, EscapeBuf, StrBuf, StrBufLen);
+
+					sprintf(Output, EscapeBuf);
+					Output += strlen(EscapeBuf);
+
+					break;
+				}
+				case 'X':
+				{
+					char HexBuf[16];
+					memset(HexBuf, 0, 16);
+					itoa(*AddressPtr, HexBuf, 16);
+
+					for(size_t c=0, len = strlen(HexBuf); c < len; ++c) {
+						if(HexBuf[c] >= 'a' && HexBuf[c] <= 'f')
+							HexBuf[c] = toupper(HexBuf[c]);
+
+						*Output = HexBuf[c];
+						++Output;
+					}
+
+					break;
+				}
+				case 'x':
+				{
+					char HexBuf[16];
+					memset(HexBuf, 0, 16);
+					itoa(*AddressPtr, HexBuf, 16);
+
+					sprintf(Output, HexBuf);
+					Output += strlen(HexBuf);
+
+					break;
+				}
+				case 'b':
+				case 'B':
+				{
+					char BinBuf[32];
+					memset(BinBuf, 0, 32);
+					itoa(*AddressPtr, BinBuf, 2);
+
+					sprintf(Output, BinBuf);
+					Output += strlen(BinBuf);
+
+					break;
+				}
+				default: {
+					if(CLog::Get()->IsLogLevel(LOG_ERROR)) {
+						char LogBuf[128];
+						sprintf(LogBuf, "invalid format specifier \"%%%c\"", *Format);
+						CLog::Get()->LogFunction(LOG_ERROR, "mysql_format", LogBuf);
+					}
+				}
+				
+			}
+			ParamCounter++;
 		}
-alloc_format:
-		unsigned int iFormatLen = strlen(szFormat), iParamLen = strlen(szParam);
-		szResult = (char*)malloc(iFormatLen + iParamLen + 1);
-		memcpy(szResult, szFormat, (i - 1));
-		if (precision != NULL && is_string_char(cChar) && precision <= iParamLen) {
-			memcpy(szResult + (i - 1), szParam, precision);
-		} else {
-			memcpy(szResult + (i - 1), szParam, iParamLen);
+		else {
+			*Output = *Format;
+			++Output;
 		}
-		if (precision != NULL && is_string_char(cChar)) {
-			if(iParamLen < precision)
-				memset(szResult + (i - 1) + iParamLen, ' ', precision - iParamLen);
-			memcpy(szResult + (i - 1) + precision, szFormat + strlen(num_str) + i + 2, iFormatLen - i);
-		} else if (precision != NULL && (cChar == 'f' || cChar == 'd')) {
-			memcpy(szResult + (i - 1) + iParamLen, szFormat + strlen(num_str) + i + 2, iFormatLen - i);
-		} else {
-			memcpy(szResult + (i - 1) + iParamLen, szFormat + i + 1, iFormatLen - i);
-		}
-		free(szFormat);
-		free(szParam);
-		szFormat = (char*)malloc(strlen(szResult) + 1);
-		strcpy(szFormat, szResult);
-		free(szResult);
-		l = strlen(szFormat);
-		szFormat[l] = '\0';
-		iParam++;
 	}
 	
-	AMX_H->SetCString(amx, params[2], szFormat, params[3]);
-	free(szFormat);
+	*Output = '\0';
+	AMX_H->SetCString(amx, params[2], OrgOutput, DestLen);
+	free(OrgOutput);
 	return 1;
 }
 
@@ -786,8 +813,8 @@ cell AMX_NATIVE_CALL Native::mysql_get_charset(AMX* amx, cell* params) {
 	return 1;
 }
 
-//native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
-cell AMX_NATIVE_CALL Native::mysql_real_escape_string(AMX* amx, cell* params) {
+//native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
+cell AMX_NATIVE_CALL Native::mysql_escape_string(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	
 	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
@@ -804,16 +831,16 @@ cell AMX_NATIVE_CALL Native::mysql_real_escape_string(AMX* amx, cell* params) {
 	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
 	size_t DestLength = (params[4] <= 0 ? 8192 : params[4]);
 
-	string Source;
-	AMX_H->GetString(amx, params[1], Source);
-	char *StrBuffer = new char[Source.length()*2+1];
-	memset(StrBuffer, '\0', Source.length()*2 + 1);
+	char *Source = NULL;
+	amx_StrParam(amx, params[1], Source);
 
-	cell StringLen = (cell)mysql_real_escape_string(ConnPtr, StrBuffer, Source.c_str(), Source.length());
-	string EscapedString(StrBuffer);
-	AMX_H->SetString(amx, params[2], EscapedString, params[4]);
+	char *StrBuffer = (char *)malloc(DestLength*2+1);
+	memset(StrBuffer, 0, DestLength*2 + 1);
+
+	cell StringLen = (cell)mysql_real_escape_string(ConnPtr, StrBuffer, Source, strlen(Source));
 	
-	delete[] StrBuffer; 
+	AMX_H->SetCString(amx, params[2], StrBuffer, params[4]);
+	free(StrBuffer);
 	return StringLen; 
 }
 

@@ -10,7 +10,9 @@
 
 
 #include <vector>
+#include <string>
 using std::vector;
+using std::string;
 
 
 
@@ -29,31 +31,28 @@ public:
 	CMySQLResult();
 	~CMySQLResult();
 
-	my_ulonglong GetRowCount() {
+	inline my_ulonglong GetRowCount() const {
 		return m_Rows;
 	}
 
-	unsigned int GetFieldCount() {
+	inline unsigned int GetFieldCount() const {
 		return m_Fields;
 	}
 
-	//unsigned int GetFieldName(unsigned int idx, string &dest);
-	unsigned int GetFieldName(unsigned int idx, char **dest);
-	//unsigned int GetRowData(unsigned int row, unsigned int fieldidx, string &dest);
-	unsigned int GetRowData(unsigned int row, unsigned int fieldidx, char **dest);
-	//unsigned int GetRowDataByName(unsigned int row, string field, string &dest);
-	unsigned int GetRowDataByName(unsigned int row, const char *field, char **dest);
+	unsigned short GetFieldName(unsigned int idx, char **dest);
+	unsigned short GetRowData(unsigned int row, unsigned int fieldidx, char **dest);
+	unsigned short GetRowDataByName(unsigned int row, const char *field, char **dest);
 
 
-	my_ulonglong InsertID() {
+	inline my_ulonglong InsertID() const {
 		return m_InsertID;
 	}
 
-	my_ulonglong AffectedRows() {
+	inline my_ulonglong AffectedRows() const {
 		return m_AffectedRows;
 	}
 
-	unsigned int GetWarningCount() {
+	inline unsigned int GetWarningCount() const {
 		return m_WarningCount;
 	}
 
@@ -61,9 +60,9 @@ private:
 	unsigned int m_Fields;
 	my_ulonglong m_Rows;
 
-	vector<vector<char*>* > m_Data;
-	vector<char*> m_FieldNames;
-	vector<unsigned int> m_FieldDataTypes;
+	vector< vector<string> > m_Data;
+	vector<string> m_FieldNames;
+	vector<unsigned short> m_FieldDataTypes;
 
 	my_ulonglong m_InsertID, m_AffectedRows;
 

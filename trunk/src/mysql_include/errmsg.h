@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000-2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,6 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SERVER_LOST_EXTENDED			2055
 #define CR_STMT_CLOSED				2056
 #define CR_NEW_STMT_METADATA                    2057
-#define CR_ALREADY_CONNECTED                    2058
-#define CR_ERROR_LAST  /*Copy last error nr:*/  2058
+#define CR_ERROR_LAST  /*Copy last error nr:*/  2057
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 

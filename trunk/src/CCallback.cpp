@@ -7,13 +7,13 @@
 #include "CMySQLResult.h"
 #include "CLog.h"
 
-//CMutex CCallback::CallbackMutex;
-//queue<CMySQLQuery*> CCallback::CallbackQueue;
+
 boost::lockfree::queue<
 		CMySQLQuery*, 
 		boost::lockfree::fixed_sized<true>,
 		boost::lockfree::capacity<10000>
 	> CCallback::CallbackQueue;
+
 
 void CCallback::ProcessCallbacks() {
 	CMySQLQuery *Query = NULL;
@@ -21,13 +21,16 @@ void CCallback::ProcessCallbacks() {
 		CCallback *Callback = Query->Callback;
 		 
 		if(Callback != NULL && Callback->Name.length() > 0) { 
+
+			bool PassByReference = Query->Callback->IsInline;
+
 			for (list<AMX *>::iterator a = p_Amx.begin(), end = p_Amx.end(); a != end; ++a) { 
 				cell amx_Ret;
 				int amx_Index;
-				cell amx_Address = -1;
+				cell amx_MemoryAddress = -1;
+
 				if (amx_FindPublic( (*a), Callback->Name.c_str(), &amx_Index) == AMX_ERR_NONE) { 
 						
-					//Native::Log(LOG_DEBUG, "%s(%s) - Callback is being called..", Callback->Name.c_str(), Callback->ParamFormat.c_str());
 					CLog::Get()->StartCallback(Callback->Name.c_str());
 
 					int StringIndex = Callback->ParamFormat.length()-1; 
@@ -36,20 +39,35 @@ void CCallback::ProcessCallbacks() {
 							case 'i':
 							case 'd': {
 								int val = atoi(Callback->Parameters.top().c_str());
-								amx_Push( (*a), (cell)val);
+
+								if(PassByReference == false)
+									amx_Push( (*a), (cell)val);
+								else {
+									cell tmpAddress;
+									amx_PushArray( (*a), &tmpAddress, NULL, (cell*)&val, 1);
+									if(amx_MemoryAddress < NULL)
+										amx_MemoryAddress = tmpAddress;
+								}
 							} break;
 
 							case 'f': { 
 								float FParam = (float)atof(Callback->Parameters.top().c_str());
-								amx_Push( (*a), amx_ftoc(FParam));
+								if(PassByReference == false)
+									amx_Push( (*a), amx_ftoc(FParam));
+								else {
+									cell tmpAddress;
+									amx_PushArray( (*a), &tmpAddress, NULL, (cell*)&amx_ftoc(FParam), 1);
+									if(amx_MemoryAddress < NULL)
+										amx_MemoryAddress = tmpAddress;
+								}
 
 							} break;
 							
 							default: {
-								cell TmpAddress;
-								amx_PushString( (*a), &TmpAddress, NULL, Callback->Parameters.top().c_str(), 0, 0);
-								if(amx_Address < NULL)
-									amx_Address = TmpAddress;
+								cell tmpAddress;
+								amx_PushString( (*a), &tmpAddress, NULL, Callback->Parameters.top().c_str(), 0, 0);
+								if(amx_MemoryAddress < NULL)
+										amx_MemoryAddress = tmpAddress;
 							}
 						}
 
@@ -59,23 +77,26 @@ void CCallback::ProcessCallbacks() {
 					}
 
 					CMySQLResult *Result = Query->Result;
+					CMySQLHandle::SQLHandleMutex.Lock();
 					Query->ConnHandle->SetNewResult(Result);
 
 					amx_Exec(* a, &amx_Ret, amx_Index);
-					if (amx_Address >= NULL)
-						amx_Release( (*a), amx_Address);
+					if (amx_MemoryAddress >= NULL)
+						amx_Release( (*a), amx_MemoryAddress);
+
 					
-					if(!Query->ConnHandle->IsActiveResultSaved())
+					if(!Query->ConnHandle->IsActiveResultSaved()) 
 						delete Result;
+					
 					Query->ConnHandle->SetNewResult(NULL);
+					CMySQLHandle::SQLHandleMutex.Unlock();
 					
 					CLog::Get()->EndCallback();
-					//Native::Log(LOG_DEBUG, "ProcessCallbacks() - The result has been cleared.");
 
 				}
 			}
 		}
 		delete Callback;
-		delete Query; 
+		delete Query;
 	}
 }

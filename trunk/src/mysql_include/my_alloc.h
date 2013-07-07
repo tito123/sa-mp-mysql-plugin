@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2002, 2005, 2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
-  size_t left;                     /* memory left in block  */
-  size_t size;                     /* size of block */
+  unsigned int	left;		   /* memory left in block  */
+  unsigned int	size;		   /* size of block */
 } USED_MEM;
 
 
