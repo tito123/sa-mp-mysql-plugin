@@ -10,7 +10,11 @@
 using std::string;
 using std::queue;
 
+
+
 #ifdef _WIN32
+#define WINVER 0x0501
+#define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include "Windows.h" 
 #define SLEEP(x) { Sleep(x); }
@@ -29,7 +33,7 @@ void CLog::ProcessLog() {
 	bool FirstInit = true;
 
 	char TableColor[8];
-	char StatusText[16];
+	char StatusText[16]; 
 
 
 
@@ -40,10 +44,12 @@ void CLog::ProcessLog() {
 	StartLogTimeInfo = localtime(&StartLogTimeRaw);
 	strftime(StartLogTime, sizeof(StartLogTime), "%H:%M, %d.%m.%Y", StartLogTimeInfo);
 
-	fprintf(LogFile, "<html>\n<head><title>MySQL Plugin log</title>\n<style>\ntable {width: 600px; border: 1px solid black; border-collapse: collapse;} \
-					 \nth, td {border: 1px solid black;}\nthead {background-color: #C0C0C0;}\ntbody {text-align: center;}\n \
-					 table.left1 {position: relative; left: 36px;}\ntable.left2 {position: relative; left: 72px;}\n</style>\n\t \
-					 </head>\n\n<body>\n\t<h1>Logging started at %s</h1>\n", StartLogTime);
+	fprintf(LogFile, "<html>\n<head><title>MySQL Plugin log</title>\n<style>\n" \
+					 "table {border: 1px solid black; border-collapse: collapse; line-height: 23px;}\n" \
+					 "th, td {border: 1px solid black;}\nthead {background-color: #C0C0C0;}\ntbody {text-align: center;}\n" \
+					 "table.left1 {position: relative; left: 36px;}\ntable.left2 {position: relative; left: 72px;}\n" \
+					 "td.time {width: 80px;}\ntd.func {width: 300px;}\ntd.stat {width: 70px;}\ntd.msg {width: 400px;}" \
+					 "</style>\n\t</head>\n\n<body>\n\t<h1>Logging started at %s</h1>\n", StartLogTime);
 	fflush(LogFile);
 
 	while(m_LogThreadAlive) {
@@ -111,13 +117,13 @@ void CLog::ProcessLog() {
 				
 				FileData.append("\t\t\t<tr bgcolor=");
 				FileData.append(TableColor);
-				FileData.append(">\n\t\t\t\t<td>");
+				FileData.append(">\n\t\t\t\t<td class=time>");
 				FileData.append(timeform);
-				FileData.append("</td>\n\t\t\t\t<td>");
+				FileData.append("</td>\n\t\t\t\t<td class=func>");
 				FileData.append(LogData->Name);
-				FileData.append("</td>\n\t\t\t\t<td>");
+				FileData.append("</td>\n\t\t\t\t<td class=stat>");
 				FileData.append(StatusText);
-				FileData.append("</td>\n\t\t\t\t<td>");
+				FileData.append("</td>\n\t\t\t\t<td class=msg>");
 				FileData.append(LogData->Msg);
 				FileData.append("</td>\n\t\t\t</tr>\n");
 
@@ -239,9 +245,11 @@ void CLog::EndCallback() {
 
 
 CLog::~CLog() {
-	m_LogThreadAlive = false;
-	m_LogThread->join();
-	delete m_LogThread;
+	if(m_LogThread != NULL) {
+		m_LogThreadAlive = false;
+		m_LogThread->join();
+		delete m_LogThread;
+	}
 }
 
 void CLog::TextLog(unsigned int level, char* text) {
@@ -272,6 +280,66 @@ void CLog::TextLog(unsigned int level, char* text) {
         }
                 
     }
+}
+
+
+
+void CLog::OpenCallback( string &dest )
+{
+	if(IsCallbackActive == true) {
+		dest.append("\t<table class=left2 style=\"width: 863px;\">\n\t\t<th bgcolor=#C0C0C0 >In callback \"");
+		dest.append(CallbackName);
+		dest.append("\"</th>\n\t</table>\n");
+		IsCallbackOpen = true;
+		IsCallbackActive = false;
+		ToggleHeader = true;
+	}
+}
+
+void CLog::CloseCallback( string &dest )
+{
+	if(IsCallbackActive == false) {
+		CloseTable(dest);
+	}
+	IsCallbackOpen = false;
+	CallbackName.clear();
+}
+
+void CLog::SetActiveCallback( string cbname )
+{
+	CallbackName = cbname;
+	IsCallbackActive = true;
+}
+
+void CLog::OpenTable( string &dest, bool header /*= false*/ )
+{
+	OpenCallback(dest);
+	if(IsTableOpen == false) {
+		dest.append("\t<table");
+		if(IsCallbackOpen == true)
+			dest.append(" class=left2");
+		dest.append(">\n\t\t");
+
+		if( (ToggleHeader && IsCallbackOpen) || header == true) {
+			dest.append("<thead>\n\t\t\t<th>Time</th>\n\t\t\t<th>Function</th>\n\t\t\t<th>Status</th>\n\t\t\t<th>Message</th>\n\t\t</thead>\n\t\t");
+			ToggleHeader = false;
+		}
+		dest.append("<tbody>\n\t");
+		IsTableOpen = true;
+	}
+}
+
+void CLog::CloseTable( string &dest )
+{
+	if(IsTableOpen == true) {
+		dest.append("\t\t</tbody>\n\t</table>\n");
+		IsTableOpen = false;
+	}
+}
+
+bool CLog::IsCallbackOpenF()
+{
+	return IsCallbackOpen;
 }
 
 
@@ -359,7 +427,6 @@ static int print2(char **out, int *varg)
 			}
 		}
 		else {
-		//out:
 			printchar (out, *format);
 			++pc;
 		}
@@ -367,14 +434,6 @@ static int print2(char **out, int *varg)
 	if (out) **out = '\0';
 	return pc;
 }
-
-/* assuming sizeof(void *) == sizeof(int) */
-/*
-int printf(const char *format, ...)
-{
-	register int *varg = (int *)(&format);
-	return print(0, varg);
-}*/
 
 int sprintf2(char *out, const char *format, ...)
 {

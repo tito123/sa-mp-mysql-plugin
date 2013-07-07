@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #define _mysql_com_h
 
 #define HOSTNAME_LENGTH 60
-#define SYSTEM_CHARSET_MBMAXLEN 4
+#define SYSTEM_CHARSET_MBMAXLEN 3
 #define NAME_CHAR_LEN	64              /* Field/table name length */
 #define USERNAME_CHAR_LENGTH 16
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
@@ -29,15 +29,6 @@
 
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
-
-/*
-  Maximum length of comments
-*/
-#define TABLE_COMMENT_INLINE_MAXLEN 180 /* pre 6.0: 60 (3-byte) characters */
-#define TABLE_COMMENT_MAXLEN 2048
-#define COLUMN_COMMENT_MAXLEN 1024
-#define INDEX_COMMENT_MAXLEN 1024
-
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
@@ -113,8 +104,6 @@ enum enum_server_command
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 #define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
-#define FIELD_STORAGE_FLAGS 22          /* Storage type: bit 22, 23 and 24 */
-#define COLUMN_FORMAT_FLAGS 25          /* Column format: bit 25, 26 and 27 */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -136,7 +125,6 @@ enum enum_server_command
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
-#define REFRESH_BACKUP_LOG  0x200000L
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -156,7 +144,6 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
-#define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -180,7 +167,6 @@ enum enum_server_command
                            CLIENT_SECURE_CONNECTION | \
                            CLIENT_MULTI_STATEMENTS | \
                            CLIENT_MULTI_RESULTS | \
-                           CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS)
 
@@ -217,17 +203,6 @@ enum enum_server_command
   number of result set columns.
 */
 #define SERVER_STATUS_METADATA_CHANGED 1024
-/*
-  Tell clients that this query was logged to the slow query log.
-  Not yet set in the server, but interface is defined for applications
-  to use.  See WorkLog 4098.
-*/
-#define SERVER_QUERY_WAS_SLOW           2048
-
-/**
-  To mark ResultSet containing output parameter values.
-*/
-#define SERVER_PS_OUT_PARAMS            4096
 
 /**
   Server status flags that must be cleared when starting
@@ -279,53 +254,64 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /* Please remove with the next incompatible ABI change. */
-  my_bool unused2; /* Please remove with the next incompatible ABI change */
+  my_bool unused0; /* Please remove with the next incompatible ABI change. */
+  my_bool unused; /* Please remove with the next incompatible ABI change */
   my_bool compress;
-  my_bool unused3; /* Please remove with the next incompatible ABI change. */
+  my_bool unused1; /* Please remove with the next incompatible ABI change. */
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
 #endif
   /*
-    Unused, please remove with the next incompatible ABI change.
+    'query_cache_query' should be accessed only via query cache
+    functions and methods to maintain proper locking.
   */
-  unsigned char *unused;
+  unsigned char *query_cache_query;
   unsigned int last_errno;
   unsigned char error; 
-  my_bool unused4; /* Please remove with the next incompatible ABI change. */
-  my_bool unused5; /* Please remove with the next incompatible ABI change. */
+  my_bool unused2; /* Please remove with the next incompatible ABI change. */
+  my_bool return_errno;
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  /*
+    Controls whether a big packet should be skipped.
+
+    Initially set to FALSE by default. Unauthenticated sessions must have
+    this set to FALSE so that the server can't be tricked to read packets
+    indefinitely.
+  */
+  my_bool skip_big_packet;
+#endif
 } NET;
 
 
 #define packet_error (~(unsigned long) 0)
 
 enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-                        MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
-                        MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
-                        MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
-                        MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-                        MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
-                        MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-                        MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-                        MYSQL_TYPE_BIT,
+			MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
+			MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
+			MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
+			MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
+			MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
+			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
+			MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
+			MYSQL_TYPE_BIT,
                         MYSQL_TYPE_NEWDECIMAL=246,
-                        MYSQL_TYPE_ENUM=247,
-                        MYSQL_TYPE_SET=248,
-                        MYSQL_TYPE_TINY_BLOB=249,
-                        MYSQL_TYPE_MEDIUM_BLOB=250,
-                        MYSQL_TYPE_LONG_BLOB=251,
-                        MYSQL_TYPE_BLOB=252,
-                        MYSQL_TYPE_VAR_STRING=253,
-                        MYSQL_TYPE_STRING=254,
-                        MYSQL_TYPE_GEOMETRY=255,
-                        MAX_NO_FIELD_TYPES /* Should always be last */
+			MYSQL_TYPE_ENUM=247,
+			MYSQL_TYPE_SET=248,
+			MYSQL_TYPE_TINY_BLOB=249,
+			MYSQL_TYPE_MEDIUM_BLOB=250,
+			MYSQL_TYPE_LONG_BLOB=251,
+			MYSQL_TYPE_BLOB=252,
+			MYSQL_TYPE_VAR_STRING=253,
+			MYSQL_TYPE_STRING=254,
+			MYSQL_TYPE_GEOMETRY=255
+
 };
 
 /* For backward compatibility */
@@ -433,10 +419,18 @@ void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
 
+/*
+  The following function is not meant for normal usage
+  Currently it's used internally by manager.c
+*/
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);
-struct my_rnd_struct;
+
+struct rand_struct {
+  unsigned long seed1,seed2,max_value;
+  double max_value_dbl;
+};
 
 #ifdef __cplusplus
 }
@@ -444,14 +438,8 @@ struct my_rnd_struct;
 
   /* The following is for user defined functions */
 
-enum Item_result
-{
-  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
-#ifdef MYSQL_SERVER
-  ,IMPOSSIBLE_RESULT  /* Yes, we know this is ugly, don't tell us */
-  ,MAX_NO_ITEM_RESULTS = IMPOSSIBLE_RESULT /* Should always be last */
-#endif
-};
+enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
+                  DECIMAL_RESULT};
 
 typedef struct st_udf_args
 {
@@ -496,8 +484,10 @@ extern "C" {
   implemented in sql/password.c
 */
 
-void create_random_string(char *to, unsigned int length,
-                          struct my_rnd_struct *rand_st);
+void randominit(struct rand_struct *, unsigned long seed1,
+                unsigned long seed2);
+double my_rnd(struct rand_struct *);
+void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
 
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
@@ -539,5 +529,4 @@ uchar *net_store_length(uchar *pkg, ulonglong length);
 #define MYSQL_STMT_HEADER       4
 #define MYSQL_LONG_DATA_HEADER  6
 
-#define NOT_FIXED_DEC           31
 #endif

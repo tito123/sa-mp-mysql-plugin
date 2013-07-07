@@ -1,11 +1,15 @@
 /**
- * MySQL plugin R26
+ * MySQL plugin R27
  */
 
 #if defined mysql_included
 	#endinput
 #endif
 #define mysql_included
+
+#if defined MYSQL_USE_YINLINE
+	#include "YSI\y_inline.inc"
+#endif
 
 /**
  * Common error codes
@@ -39,6 +43,10 @@ enum e_LogType {
 #define mysql_insert_id cache_insert_id
 #define mysql_affected_rows cache_affected_rows
 #define mysql_warning_count cache_warning_count
+#define mysql_real_escape_string mysql_escape_string
+
+// mysql_function_query(conHandle, query[], bool:cache, callback[], format[], {Float,_}:...)
+#define mysql_function_query(%0,%1,%2,%3,"%4"%5) mysql_tquery(%0,%1,%3,#%4%5)
 
 // mysql_fetch_row(destination)
 #define mysql_fetch_row(%1) mysql_fetch_row_format(%1,"|")
@@ -61,10 +69,9 @@ native mysql_connect(const host[], const user[], const database[], const passwor
 native mysql_close(connectionHandle = 1);
 native mysql_reconnect(connectionHandle = 1);
 
-native mysql_real_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
+native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_tquery(connectionHandle, query[], callback[], format[], {Float,_}:...);
-native mysql_function_query(connectionHandle, query[], bool:cache, callback[], format[], {Float,_}:...);
 
 native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
@@ -75,12 +82,15 @@ native mysql_set_charset(charset[], connectionHandle = 1);
 // Cache functions.
 native cache_get_data(&num_rows, &num_fields, connectionHandle = 1);
 native cache_get_field(field_index, destination[], connectionHandle = 1, max_len=sizeof(destination));
+
 native cache_get_row(row, idx, destination[], connectionHandle = 1, max_len=sizeof(destination));
 native cache_get_row_int(row, idx, connectionHandle = 1);
 native Float:cache_get_row_float(row, idx, connectionHandle = 1);
+
 native cache_get_field_content(row, const field_name[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native cache_get_field_content_int(row, const field_name[], connectionHandle = 1);
 native Float:cache_get_field_content_float(row, const field_name[], connectionHandle = 1);
+
 native cache_save(connectionHandle = 1);
 native cache_delete(cacheID, connectionHandle = 1);
 native cache_set_active(cacheID, connectionHandle = 1);
@@ -89,6 +99,37 @@ native cache_affected_rows(connectionHandle = 1);
 native cache_insert_id(connectionHandle = 1);
 native cache_warning_count(connectionHandle = 1);
 
+
+#if defined MYSQL_USE_YINLINE
+
+	new g_MySQL_InlineData[500][E_CALLBACK_DATA];
+	new g_MySQL_InlineCounter = 0;
+
+	stock MySQL_Internal_SaveInline(callback:CB) {
+		new InlineData[E_CALLBACK_DATA];
+		if (Callback_Get(CB, InlineData))
+		{
+			g_MySQL_InlineCounter++;
+			g_MySQL_InlineData[g_MySQL_InlineCounter] = InlineData;
+		}
+	}
+
+	#define mysql_tquery_inline(%0,%1,%2,"%3"%4) \
+		MySQL_Internal_SaveInline(%2); \
+		mysql_tquery(%0,%1,"FJ37DH3JG_MYSQL_INTERNAL","d"#%3,g_MySQL_InlineCounter%4)
+
+
+	forward FJ37DH3JG_MYSQL_INTERNAL(...);
+	public FJ37DH3JG_MYSQL_INTERNAL(...) {
+		new VarArray[32];
+		new AddressArray[32];
+		for(new i=0; i < numargs()-1; ++i) {
+			VarArray[i] = getarg(i+1);
+			AddressArray[i] = AMX_GetRelativeAddress(VarArray[i]);
+		}
+		Callback_Array(g_MySQL_InlineData[getarg(0)], AddressArray);
+	}
+#endif
 
 // Wrappers for cache functions
 stock mysql_reload(connectionHandle = 1) {

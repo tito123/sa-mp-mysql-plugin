@@ -12,6 +12,8 @@
 #include <string>
 using std::string;
 
+#define WINVER 0x0501
+#define _WIN32_WINNT 0x0501
 #define BOOST_THREAD_DONT_USE_CHRONO
 #include "boost/thread/thread.hpp"
 #include "boost/lockfree/queue.hpp"
@@ -115,52 +117,12 @@ private:
 	bool IsCallbackOpen;
 	bool ToggleHeader;
 
-	bool IsCallbackOpenF() {
-		return IsCallbackOpen;
-	}
-	inline void CloseTable(string &dest) {
-		if(IsTableOpen == true) {
-			dest.append("\t\t</tbody>\n\t</table>\n");
-			IsTableOpen = false;
-		}
-	}
-	inline void OpenTable(string &dest, bool header = false) {
-		OpenCallback(dest);
-		if(IsTableOpen == false) {
-			dest.append("\t<table");
-			if(IsCallbackOpen == true)
-				dest.append(" class=left2");
-			dest.append(">\n\t\t");
-			
-			if( (ToggleHeader && IsCallbackOpen) || header == true) {
-				dest.append("<thead>\n\t\t\t<th>Time</th>\n\t\t\t<th>Function</th>\n\t\t\t<th>Status</th>\n\t\t\t<th>Message</th>\n\t\t</thead>\n\t\t");
-				ToggleHeader = false;
-			}
-			dest.append("<tbody>\n\t\t");
-			IsTableOpen = true;
-		}
-	}
-	inline void OpenCallback(string &dest) {
-		if(IsCallbackActive == true) {
-			dest.append("\t<table class=left2>\n\t\t<th bgcolor=#C0C0C0 >In callback \"");
-			dest.append(CallbackName);
-			dest.append("\"</th>\n\t</table>\n");
-			IsCallbackOpen = true;
-			IsCallbackActive = false;
-			ToggleHeader = true;
-		}
-	}
-	inline void CloseCallback(string &dest) {
-		if(IsCallbackActive == false) {
-			CloseTable(dest);
-		}
-		IsCallbackOpen = false;
-		CallbackName.clear();
-	}
-	inline void SetActiveCallback(string cbname) {
-		CallbackName = cbname;
-		IsCallbackActive = true;
-	}
+	bool IsCallbackOpenF();
+	void CloseTable(string &dest);
+	void OpenTable(string &dest, bool header = false);
+	void OpenCallback(string &dest);
+	void CloseCallback(string &dest);
+	void SetActiveCallback(string cbname);
 
 	
 	

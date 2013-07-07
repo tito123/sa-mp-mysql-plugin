@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003-2005, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +13,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
-/**
-  @file
-  Key cache API
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+/* Key cache variable structures */
 
 #ifndef _keycache_h
 #define _keycache_h
@@ -36,10 +36,6 @@ typedef struct st_keycache_wqueue
 {
   struct st_my_thread_var *last_thread;  /* circular list of waiting threads */
 } KEYCACHE_WQUEUE;
-
-/** Callback called when any block is flushed */
-typedef int (*KEYCACHE_POST_WRITE_CALLBACK)(void *arg, const uchar *buffert,
-                                            uint length, my_off_t filepos);
 
 #define CHANGED_BLOCKS_HASH 128             /* must be power of 2 */
 
@@ -88,7 +84,6 @@ typedef struct st_key_cache
   KEYCACHE_WQUEUE waiting_for_block;    /* requests waiting for a free block */
   BLOCK_LINK *changed_blocks[CHANGED_BLOCKS_HASH]; /* hash for dirty file bl.*/
   BLOCK_LINK *file_blocks[CHANGED_BLOCKS_HASH];    /* hash for other file bl.*/
-  KEYCACHE_POST_WRITE_CALLBACK post_write;/**< Called when flushing any block*/
 
   /*
     The following variables are and variables used to hold parameters for
@@ -132,8 +127,7 @@ extern int key_cache_insert(KEY_CACHE *keycache,
 extern int key_cache_write(KEY_CACHE *keycache,
                            File file, my_off_t filepos, int level,
                            uchar *buff, uint length,
-                           uint block_length, int force_write,
-                           void *post_write_arg);
+			   uint block_length,int force_write);
 extern int flush_key_blocks(KEY_CACHE *keycache,
                             int file, enum flush_type type);
 extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
@@ -141,8 +135,7 @@ extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
 /* Functions to handle multiple key caches */
 extern my_bool multi_keycache_init(void);
 extern void multi_keycache_free(void);
-extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length,
-                                         KEY_CACHE *def);
+extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length);
 extern my_bool multi_key_cache_set(const uchar *key, uint length,
 				   KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data,

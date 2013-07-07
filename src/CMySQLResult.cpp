@@ -5,11 +5,10 @@
 
 
 
-unsigned int CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
-	if (idx < m_FieldNames.size()) {
-		(*dest) = m_FieldNames.at(idx);
+unsigned short CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
+	if (idx < m_Fields) {
+		(*dest) = const_cast<char*>(m_FieldNames.at(idx).c_str());
 
-		//Native::Log(LOG_DEBUG, "CMySQLResult::GetFieldName() - Result: \"%s\"", dest);
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 			char LogMsgBuf[128];
 			sprintf2(LogMsgBuf, "index: '%d', name: \"%s\"", idx, *dest);
@@ -20,7 +19,6 @@ unsigned int CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 	}
 	else {
 
-		//Native::Log(LOG_WARNING, "CMySQLResult::GetFieldName() - Invalid field index.");
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
 			char LogMsgBuf[128];
 			sprintf2(LogMsgBuf, "invalid field index ('%d')", idx);
@@ -31,11 +29,10 @@ unsigned int CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 	}
 }
 
-unsigned int CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,char **dest) {
+unsigned short CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, char **dest) {
 	if(row < m_Rows && fieldidx < m_Fields) {
-		(*dest) = m_Data.at(row)->at(fieldidx);
+		(*dest) = const_cast<char*>(m_Data.at(row).at(fieldidx).c_str());
 
-		//Native::Log(LOG_DEBUG, "CMySQLResult::GetRowData() - Result: \"%s\"", *dest);
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 			char LogMsgBuf[512];
 			sprintf2(LogMsgBuf, "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, *dest);
@@ -45,7 +42,6 @@ unsigned int CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,ch
 		return m_FieldDataTypes.at(fieldidx);
 	}
 	else {
-		//Native::Log(LOG_WARNING, "CMySQLResult::GetRowData() - Invalid row or field index.");
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
 			char LogMsgBuf[128];
 			sprintf2(LogMsgBuf, "invalid row ('%d') or field index ('%d')", row, fieldidx);
@@ -56,13 +52,12 @@ unsigned int CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,ch
 	}
 }
 
-unsigned int CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **dest) {
+unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **dest) {
 	if (row < m_Rows && m_Fields > 0) {
 		for (unsigned int i = 0; i < m_Fields; ++i) {
-			if (!strcmp(m_FieldNames.at(i), field)) {
-				(*dest) = m_Data.at(row)->at(i);
+			if(m_FieldNames.at(i).compare(field) == 0) {
+				(*dest) = const_cast<char*>(m_Data.at(row).at(i).c_str());
 
-				//Native::Log(LOG_DEBUG, "CMySQLResult::GetRowDataByName() - Result: \"%s\"", *dest);
 				if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 					char LogMsgBuf[512];
 					sprintf2(LogMsgBuf, "row: '%d', field: \"%s\", data: \"%s\"", row, field, *dest);
@@ -73,7 +68,6 @@ unsigned int CMySQLResult::GetRowDataByName(unsigned int row, const char *field,
 			}
 		}
 
-		//Native::Log(LOG_WARNING, "CMySQLResult::GetRowDataByName() - Field not found.");
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
 			char LogMsgBuf[128];
 			sprintf2(LogMsgBuf, "field not found (\"%s\")", field);
@@ -82,7 +76,6 @@ unsigned int CMySQLResult::GetRowDataByName(unsigned int row, const char *field,
 
 	}
 	else {
-		//Native::Log(LOG_WARNING, "CMySQLResult::GetRowDataByName() - Invalid row index.");
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
 			char LogMsgBuf[128];
 			sprintf2(LogMsgBuf, "invalid row index ('%d')", row);
@@ -95,26 +88,11 @@ unsigned int CMySQLResult::GetRowDataByName(unsigned int row, const char *field,
 CMySQLResult::CMySQLResult() {
 	m_Fields = 0;
 	m_Rows = 0; 
-	m_Data.clear();
-	m_FieldNames.clear();
 	m_InsertID = 0;
 	m_AffectedRows = 0;
 	m_WarningCount = 0;
 }
 
 CMySQLResult::~CMySQLResult() {
-	for(unsigned int i=0; i < m_FieldNames.size(); ++i) {
-		free(m_FieldNames.at(i));
-	}
-	m_FieldNames.clear();
-
-	for(vector<vector<char*>* >::iterator it1 = m_Data.begin(), end1 = m_Data.end(); it1 != end1; it1++) {
-		for(vector<char*>::iterator it2 = (*it1)->begin(), end2 = (*it1)->end(); it2 != end2; it2++)
-			free(*it2);
-		delete (*it1);
-	} 
-	m_Data.clear();
-
-	//Native::Log(LOG_DEBUG, "CMySQLResult::~CMySQLResult() - Deconstructor called.");
 	CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::~CMySQLResult()", "deconstructor called");
 }

@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,18 +12,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Defines for Win32 to make it compatible for MySQL */
 
 #define BIG_TABLES
-
-/* 
-  Minimal version of Windows we should be able to run on.
-  Currently Windows 2000
-*/
-#define _WIN32_WINNT     0x0500
-
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
@@ -30,14 +25,10 @@
 #endif
 
 #include <sys/locking.h>
-#include <sys/stat.h>			/* chmod() constants*/
 #include <winsock2.h>
-#include <Ws2tcpip.h>
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
-#include <sys/stat.h>
-#include <process.h>     /* getpid()*/
 
 #define HAVE_SMEM 1
 
@@ -76,6 +67,7 @@
 #endif
 
 /* File and lock constants */
+#define O_SHARE		0x1000		/* Open file in sharing mode */
 #ifdef __BORLANDC__
 #define F_RDLCK		LK_NBLCK	/* read lock */
 #define F_WRLCK		LK_NBRLCK	/* write lock */
@@ -92,26 +84,6 @@
 #define W_OK		2
 
 #define S_IROTH		S_IREAD		/* for my_lib */
-
-/* for MY_S_ISFIFO() macro from my_lib */
-#if defined (_S_IFIFO) && !defined (S_IFIFO)
-#define S_IFIFO _S_IFIFO
-#endif
-
-/* Winsock2 constant (Vista SDK and later)*/
-#define IPPROTO_IPV6 41
-#ifndef IPV6_V6ONLY
-#define IPV6_V6ONLY 27
-#endif
-
-/* 
-   Constants used by chmod. Note, that group/others is ignored
-   - because unsupported by Windows due to different access control model.
-*/
-#define S_IRWXU S_IREAD|S_IWRITE 
-#define S_IRWXG 0
-#define S_IRWXO 0
-typedef int mode_t; 
 
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
@@ -132,9 +104,17 @@ typedef int mode_t;
 #undef _REENTRANT			/* Crashes something for win32 */
 #undef SAFE_MUTEX			/* Can't be used on windows */
 
-#define LONGLONG_MIN	0x8000000000000000LL
-#define LONGLONG_MAX	0x7FFFFFFFFFFFFFFFLL
-#define ULONGLONG_MAX	0xFFFFFFFFFFFFFFFFULL
+#if defined(_MSC_VER) && _MSC_VER >= 1310
+#define LL(A)           A##ll
+#define ULL(A)          A##ull
+#else
+#define LL(A)           ((__int64) A)
+#define ULL(A)          ((unsigned __int64) A)
+#endif
+
+#define LONGLONG_MIN	LL(0x8000000000000000)
+#define LONGLONG_MAX	LL(0x7FFFFFFFFFFFFFFF)
+#define ULONGLONG_MAX	ULL(0xFFFFFFFFFFFFFFFF)
 
 /* Type information */
 
@@ -162,21 +142,10 @@ typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
 #else
-typedef uint rf_SetTimer;
-#endif
-
 #ifndef HAVE_SIZE_T
-#ifndef _SIZE_T_DEFINED
-typedef SIZE_T size_t;
-#define _SIZE_T_DEFINED
+typedef unsigned int size_t;
 #endif
-#endif
-
-#ifndef HAVE_SSIZE_T
-#ifndef _SSIZE_T_DEFINED
-typedef SSIZE_T ssize_t;
-#define _SSIZE_T_DEFINED
-#endif
+typedef uint rf_SetTimer;
 #endif
 
 #define Socket_defined
@@ -184,6 +153,7 @@ typedef SSIZE_T ssize_t;
 #define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID
+#define RETSIGTYPE void
 #define SOCKET_SIZE_TYPE int
 #define my_socket_defined
 #define byte_defined
@@ -192,7 +162,7 @@ typedef SSIZE_T ssize_t;
 #define isnan(X) _isnan(X)
 #define finite(X) _finite(X)
 
-#ifndef UNDEF_THREAD_HACK
+#ifndef MYSQL_CLIENT_NO_THREADS
 #define THREAD
 #endif
 #define VOID_SIGHANDLER
@@ -201,13 +171,18 @@ typedef SSIZE_T ssize_t;
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
+/*
+  The size of time_t depends on the compiler.
+  But it's 8 for all the supported VC versions.
+*/
+#define SIZEOF_TIME_T		8
 #ifdef _WIN64
 #define SIZEOF_CHARP		8
 #else
 #define SIZEOF_CHARP		4
 #endif
 #define HAVE_BROKEN_NETINET_INCLUDES
-#ifdef _WIN32
+#ifdef __NT__
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
@@ -277,7 +252,7 @@ inline ulonglong double2ulonglong(double d)
 #define STACK_DIRECTION -1
 
 /* Difference between GetSystemTimeAsFileTime() and now() */
-#define OFFSET_TO_EPOCH 116444736000000000ULL
+#define OFFSET_TO_EPOCH ULL(116444736000000000)
 
 #define HAVE_PERROR
 #define HAVE_VFPRINT
@@ -320,7 +295,7 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifndef _WIN32
+#ifndef __NT__
 #undef FILE_SHARE_DELETE
 #define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
 #endif
@@ -345,12 +320,14 @@ inline ulonglong double2ulonglong(double d)
 #ifdef _CUSTOMCONFIG_
 #include <custom_conf.h>
 #else
+#ifndef CMAKE_CONFIGD
 #define DEFAULT_MYSQL_HOME	"c:\\mysql"
-#define DATADIR         	"c:\\mysql\\data"
+#define MYSQL_DATADIR          "c:\\mysql\\data"
 #define PACKAGE			"mysql"
 #define DEFAULT_BASEDIR		"C:\\"
 #define SHAREDIR		"share"
 #define DEFAULT_CHARSET_HOME	"C:/mysql/"
+#endif
 #endif
 #ifndef DEFAULT_HOME_ENV
 #define DEFAULT_HOME_ENV MYSQL_HOME
@@ -362,17 +339,18 @@ inline ulonglong double2ulonglong(double d)
 /* File name handling */
 
 #define FN_LIBCHAR	'\\'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
-#define OS_FILE_LIMIT	UINT_MAX /* No limit*/
+#define OS_FILE_LIMIT	2048
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
 /* The following is only used for statistics, so it should be good enough */
-#ifdef _WIN32  /* This should also work on Win98 but .. */
+#ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #endif
@@ -389,4 +367,54 @@ inline ulonglong double2ulonglong(double d)
 #define COMMUNITY_SERVER 1
 #define ENABLED_PROFILING 1
 
+/*
+  Our Windows binaries include all character sets which MySQL supports.
+  Any changes to the available character sets must also go into
+  config/ac-macros/character_sets.m4
+*/
+
+#define MYSQL_DEFAULT_CHARSET_NAME "latin1"
+#define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
+
+#define USE_MB 1
+#define USE_MB_IDENT 1
+#define USE_STRCOLL 1
+
+#define HAVE_CHARSET_armscii8
+#define HAVE_CHARSET_ascii
+#define HAVE_CHARSET_big5 1
+#define HAVE_CHARSET_cp1250 1
+#define HAVE_CHARSET_cp1251
+#define HAVE_CHARSET_cp1256
+#define HAVE_CHARSET_cp1257
+#define HAVE_CHARSET_cp850
+#define HAVE_CHARSET_cp852
+#define HAVE_CHARSET_cp866
+#define HAVE_CHARSET_cp932 1
+#define HAVE_CHARSET_dec8
+#define HAVE_CHARSET_eucjpms 1
+#define HAVE_CHARSET_euckr 1
+#define HAVE_CHARSET_gb2312 1
+#define HAVE_CHARSET_gbk 1
+#define HAVE_CHARSET_geostd8
+#define HAVE_CHARSET_greek
+#define HAVE_CHARSET_hebrew
+#define HAVE_CHARSET_hp8
+#define HAVE_CHARSET_keybcs2
+#define HAVE_CHARSET_koi8r
+#define HAVE_CHARSET_koi8u
+#define HAVE_CHARSET_latin1 1
+#define HAVE_CHARSET_latin2 1
+#define HAVE_CHARSET_latin5
+#define HAVE_CHARSET_latin7
+#define HAVE_CHARSET_macce
+#define HAVE_CHARSET_macroman
+#define HAVE_CHARSET_sjis 1
+#define HAVE_CHARSET_swe7
+#define HAVE_CHARSET_tis620 1
+#define HAVE_CHARSET_ucs2 1
+#define HAVE_CHARSET_ujis 1
+#define HAVE_CHARSET_utf8 1
+
+#define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1

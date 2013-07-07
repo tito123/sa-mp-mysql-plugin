@@ -7,9 +7,6 @@
     <Filter Include="SDK\amx">
       <UniqueIdentifier>{0c8fac1c-7e95-4fcd-9c0c-d9f1cde74e1c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="mysql_include">
-      <UniqueIdentifier>{e393976b-2dc2-42d9-8124-d979b19824f5}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\SDK\amx\getch.h">
@@ -26,69 +23,6 @@
     </ClInclude>
     <ClInclude Include="src\SDK\plugincommon.h">
       <Filter>SDK</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\config-win.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\errmsg.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\m_ctype.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\m_string.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_alloc.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_dbug.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_getopt.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_global.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_list.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_pthread.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\my_sys.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysql.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysql_com.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysql_embed.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysql_time.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysql_version.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysqld_ername.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\mysqld_error.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\raid.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\typelib.h">
-      <Filter>mysql_include</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mysql_include\config-netware.h">
-      <Filter>mysql_include</Filter>
     </ClInclude>
     <ClInclude Include="src\CAmxString.h" />
     <ClInclude Include="src\CMutex.h" />
@@ -118,10 +52,5 @@
     <ClCompile Include="src\CMySQLResult.cpp" />
     <ClCompile Include="src\CMySQLHandle.cpp" />
     <ClCompile Include="src\CLog.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="src\mysql_include\libmysql.def">
-      <Filter>mysql_include</Filter>
-    </None>
   </ItemGroup>
 </Project>
