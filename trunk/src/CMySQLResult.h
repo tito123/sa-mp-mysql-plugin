@@ -16,14 +16,6 @@ using std::string;
 
 
 
-enum eFieldDataType {
-	TYPE_NONE,
-	TYPE_INT,
-	TYPE_FLOAT,
-	TYPE_STRING
-};
-
-
 class CMySQLResult {
 public:
 	friend class CMySQLQuery;
@@ -39,9 +31,9 @@ public:
 		return m_Fields;
 	}
 
-	unsigned short GetFieldName(unsigned int idx, char **dest);
-	unsigned short GetRowData(unsigned int row, unsigned int fieldidx, char **dest);
-	unsigned short GetRowDataByName(unsigned int row, const char *field, char **dest);
+	void GetFieldName(unsigned int idx, char **dest);
+	void GetRowData(unsigned int row, unsigned int fieldidx, char **dest);
+	void GetRowDataByName(unsigned int row, const char *field, char **dest);
 
 
 	inline my_ulonglong InsertID() const {
@@ -62,7 +54,6 @@ private:
 
 	vector< vector<string> > m_Data;
 	vector<string> m_FieldNames;
-	vector<unsigned short> m_FieldDataTypes;
 
 	my_ulonglong m_InsertID, m_AffectedRows;
 

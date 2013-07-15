@@ -4,7 +4,7 @@
 #include "CMySQLResult.h"
 
 
-unsigned short CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
+void CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 	if (idx < m_Fields) {
 		(*dest) = const_cast<char*>(m_FieldNames.at(idx).c_str());
 
@@ -13,8 +13,6 @@ unsigned short CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 			sprintf2(LogMsgBuf, "index: '%d', name: \"%s\"", idx, *dest);
 			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetFieldName", LogMsgBuf);
 		}
-		
-		return m_FieldDataTypes.at(idx);
 	}
 	else {
 
@@ -23,12 +21,10 @@ unsigned short CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 			sprintf2(LogMsgBuf, "invalid field index ('%d')", idx);
 			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetFieldName", LogMsgBuf);
 		}
-
-		return TYPE_NONE;
 	}
 }
 
-unsigned short CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, char **dest) {
+void CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, char **dest) {
 	if(row < m_Rows && fieldidx < m_Fields) {
 		(*dest) = const_cast<char*>(m_Data.at(row).at(fieldidx).c_str());
 
@@ -39,8 +35,6 @@ unsigned short CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,
 			sprintf2(LogMsgBuf, "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, ShortenDest.c_str());
 			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowData", LogMsgBuf);
 		}
-
-		return m_FieldDataTypes.at(fieldidx);
 	}
 	else {
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
@@ -48,12 +42,10 @@ unsigned short CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,
 			sprintf2(LogMsgBuf, "invalid row ('%d') or field index ('%d')", row, fieldidx);
 			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowData", LogMsgBuf);
 		}
-
-		return TYPE_NONE;
 	}
 }
 
-unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **dest) {
+void CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **dest) {
 	if (row < m_Rows && m_Fields > 0) {
 		for (unsigned int i = 0; i < m_Fields; ++i) {
 			if(m_FieldNames.at(i).compare(field) == 0) {
@@ -67,7 +59,7 @@ unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *fiel
 					CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowDataByName", LogMsgBuf);
 				}
 
-				return m_FieldDataTypes.at(i);
+				return ;
 			}
 		}
 
@@ -85,7 +77,6 @@ unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *fiel
 			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowDataByName()", LogMsgBuf);
 		}
 	}
-	return TYPE_NONE;
 }
 
 CMySQLResult::CMySQLResult() {

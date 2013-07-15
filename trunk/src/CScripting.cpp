@@ -269,12 +269,14 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 	}
 
 	char *RowData = NULL;
-	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_INT) {
+	Result->GetRowData(params[1], params[2], &RowData);
+	try {
+		ReturnVal = boost::lexical_cast<int>(RowData);
+	}
+	catch(boost::bad_lexical_cast) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_int", "invalid data type");
 		ReturnVal = 0;
 	}
-	else 
-		ReturnVal = boost::lexical_cast<int>(RowData);
 
 	return ReturnVal;
 }
@@ -303,13 +305,14 @@ cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 	}
 
 	char *RowData = NULL;
-	
-	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_FLOAT) {
+	Result->GetRowData(params[1], params[2], &RowData);
+	try {
+		ReturnVal = boost::lexical_cast<float>(RowData);
+	}
+	catch(boost::bad_lexical_cast) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
-	else
-		ReturnVal = boost::lexical_cast<float>(RowData);
 	
 	return amx_ftoc(ReturnVal);
 }
@@ -387,12 +390,14 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 		return 0;
 	}
 
-	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_INT) {
+	Result->GetRowDataByName(params[1], FieldName, &FieldData);
+	try {
+		ReturnVal = boost::lexical_cast<int>(FieldData);
+	}
+	catch(boost::bad_lexical_cast) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_int", "invalid data type");
 		ReturnVal = 0;
 	}
-	else
-		ReturnVal = boost::lexical_cast<int>(FieldData);
 	return ReturnVal;
 }
 
@@ -428,12 +433,14 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 		return amx_ftoc(ReturnVal);
 	}
 
-	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_FLOAT) {
+	Result->GetRowDataByName(params[1], FieldName, &FieldData);
+	try {
+		ReturnVal = boost::lexical_cast<float>(FieldData);
+	}
+	catch(boost::bad_lexical_cast) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
-	else
-		ReturnVal = boost::lexical_cast<float>(FieldData);
 	return amx_ftoc(ReturnVal);
 }
 
@@ -562,9 +569,10 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 	for(string::iterator c = Callback->ParamFormat.begin(), end = Callback->ParamFormat.end(); c != end; ++c) {
 		if ( (*c) == 'd' || (*c) == 'i') {
 			amx_GetAddr(amx, params[ConstParamCount + ParamIdx], &AddressPtr);
-			char IntBuf[12]; //12 -> strlen of (-2^31) + '\0'
-			itoa(*AddressPtr, IntBuf, 10);
-			Callback->Parameters.push(IntBuf);
+			//char IntBuf[12]; //12 -> strlen of (-2^31) + '\0'
+			//itoa(*AddressPtr, IntBuf, 10);
+			//Callback->Parameters.push(IntBuf);
+			Callback->Parameters.push(boost::lexical_cast<string>((int)(*AddressPtr)));
 		} 
 		else if ( (*c) == 's' || (*c) == 'z') {
 			char *StrBuf = NULL;
@@ -572,15 +580,15 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 			if(StrBuf != NULL)
 				Callback->Parameters.push(string(StrBuf));
 			else
-				Callback->Parameters.push("");
+				Callback->Parameters.push(string());
 		} 
 		else if ( (*c) == 'f') {
 			amx_GetAddr(amx, params[ConstParamCount + ParamIdx], &AddressPtr);
-			float pFloat = amx_ctof(*AddressPtr);
-
-			char FloatBuf[84]; //84 -> strlen of (2^(2^7)) + '\0'
-			sprintf(FloatBuf, "%f", pFloat);
-			Callback->Parameters.push(FloatBuf);
+			//float pFloat = amx_ctof(*AddressPtr);
+			//char FloatBuf[84]; //84 -> strlen of (2^(2^7)) + '\0'
+			//sprintf(FloatBuf, "%f", pFloat);
+			//Callback->Parameters.push(FloatBuf);
+			Callback->Parameters.push(boost::lexical_cast<string>(amx_ctof(*AddressPtr)));
 		} 
 		else 
 			Callback->Parameters.push("NULL");
@@ -902,11 +910,11 @@ cell AMX_NATIVE_CALL Native::mysql_escape_string(AMX* amx, cell* params) {
 	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 		char LogBuf[32];
 		sprintf(LogBuf, "connection handle: %d", cID);
-		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_real_escape_string", LogBuf);
+		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_escape_string", LogBuf);
 	}
 
 	if(!CMySQLHandle::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_real_escape_string", cID);
+		ERROR_INVALID_CONNECTION_HANDLE("mysql_escape_string", cID);
 		return 0;
 	}
 	
@@ -921,7 +929,7 @@ cell AMX_NATIVE_CALL Native::mysql_escape_string(AMX* amx, cell* params) {
 	size_t SourceLen = strlen(Source);
 
 	if(SourceLen > DestLen) {
-		CLog::Get()->LogFunction(LOG_ERROR, "mysql_real_escape_string", "destination size is too small");
+		CLog::Get()->LogFunction(LOG_ERROR, "mysql_escape_string", "destination size is too small");
 		return 0;
 	}
 
