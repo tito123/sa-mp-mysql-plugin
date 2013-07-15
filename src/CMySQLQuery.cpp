@@ -51,34 +51,10 @@ void CMySQLQuery::Execute() {
 
 					Result->m_Data.reserve((unsigned int)Result->m_Rows+1);
 					Result->m_FieldNames.reserve(Result->m_Fields+1);
-					Result->m_FieldDataTypes.reserve(Result->m_Fields+1);
 
-					char *szField = NULL;
+
 					while ((SQLField = mysql_fetch_field(SQLResult))) {
 						Result->m_FieldNames.push_back(SQLField->name);
-
-						switch(SQLField->type) {
-							case MYSQL_TYPE_LONG:
-							case MYSQL_TYPE_TINY:
-							case MYSQL_TYPE_SHORT:
-							case MYSQL_TYPE_TIMESTAMP:
-							case MYSQL_TYPE_INT24:
-							case MYSQL_TYPE_LONGLONG:
-							case MYSQL_TYPE_NULL:
-							case MYSQL_TYPE_YEAR:
-							case MYSQL_TYPE_BIT:
-							case MYSQL_TYPE_ENUM:
-								Result->m_FieldDataTypes.push_back(TYPE_INT);
-								break;
-							case MYSQL_TYPE_FLOAT:
-							case MYSQL_TYPE_DOUBLE:
-							case MYSQL_TYPE_NEWDECIMAL:
-							case MYSQL_TYPE_DECIMAL:
-								Result->m_FieldDataTypes.push_back(TYPE_FLOAT);
-								break;
-							default:
-								Result->m_FieldDataTypes.push_back(TYPE_STRING);
-						}
 					}
 				
 					while (SQLRow = mysql_fetch_row(SQLResult)) {

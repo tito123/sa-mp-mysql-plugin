@@ -24,7 +24,6 @@ CMySQLHandle::CMySQLHandle(string host, string user, string passw, string db, si
 	m_ActiveResultID = 0;
 	
 	m_Connected = false;
-	m_AutoReconnect = false;
 	m_CID = 0;
 	m_ErrnoVal = 0;
 
