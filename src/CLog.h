@@ -89,7 +89,12 @@ private:
 		m_LogLevel(LOG_ERROR | LOG_WARNING), 
 		m_LogThread(NULL), 
 		m_LogThreadAlive(true),
-		m_LogType(LOG_TYPE_TEXT)
+		m_LogType(LOG_TYPE_TEXT),
+
+		IsTableOpen(false),
+		IsCallbackActive(false),
+		IsCallbackOpen(false),
+		ToggleHeader(false)
 	{}
 	~CLog();
 

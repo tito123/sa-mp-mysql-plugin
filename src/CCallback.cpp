@@ -77,19 +77,20 @@ void CCallback::ProcessCallbacks() {
 					}
 
 					CMySQLResult *Result = Query->Result;
-					CMySQLHandle::SQLHandleMutex.Lock();
 					Query->ConnHandle->SetNewResult(Result);
 
-					amx_Exec(* a, &amx_Ret, amx_Index);
+					amx_Exec( (*a), &amx_Ret, amx_Index);
 					if (amx_MemoryAddress >= NULL)
 						amx_Release( (*a), amx_MemoryAddress);
 
-					
-					if(!Query->ConnHandle->IsActiveResultSaved()) 
+
+					if(Query->ConnHandle->IsActiveResultSaved() == true)
+						Query->ConnHandle->SetNewResult(NULL);
+
+					if(Query->ConnHandle->GetResult() != NULL)
 						delete Result;
-					
+
 					Query->ConnHandle->SetNewResult(NULL);
-					CMySQLHandle::SQLHandleMutex.Unlock();
 					
 					CLog::Get()->EndCallback();
 
@@ -98,5 +99,16 @@ void CCallback::ProcessCallbacks() {
 		}
 		delete Callback;
 		delete Query;
+	}
+}
+
+void CCallback::ClearAll()
+{
+	CMySQLQuery *tmpQuery = NULL;
+	while(CallbackQueue.pop(tmpQuery)) {
+		delete tmpQuery->Callback;
+		delete tmpQuery->Result;
+		delete tmpQuery;
+		tmpQuery = NULL;
 	}
 }

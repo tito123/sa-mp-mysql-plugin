@@ -17,7 +17,6 @@
 #include "boost/lexical_cast.hpp"
 
 
-StrAmx *AMX_H;
 logprintf_t logprintf;
 
 
@@ -181,39 +180,38 @@ cell AMX_NATIVE_CALL Native::cache_get_data(AMX* amx, cell* params) {
 	return 1;
 }
 
-// native cache_get_field(field_index, dest[], connectionHandle = 1)
-cell AMX_NATIVE_CALL Native::cache_get_field(AMX* amx, cell* params) {
+// native cache_get_field_name(field_index, dest[], connectionHandle = 1)
+cell AMX_NATIVE_CALL Native::cache_get_field_name(AMX* amx, cell* params) {
 	unsigned int cID = params[3];
 	
 	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 		char LogBuf[32];
 		sprintf(LogBuf, "connection handle: %d", cID);
-		CLog::Get()->LogFunction(LOG_DEBUG, "cache_get_field", LogBuf);
+		CLog::Get()->LogFunction(LOG_DEBUG, "cache_get_field_name", LogBuf);
 	}
 
 	if(!CMySQLHandle::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field", cID);
+		ERROR_INVALID_CONNECTION_HANDLE("cache_get_field_name", cID);
 		return 0;
 	}
 	
 	CMySQLResult *Result = CMySQLHandle::GetHandle(cID)->GetResult();
 	if(Result == NULL) {
-		CLog::Get()->LogFunction(LOG_WARNING, "cache_get_field", "no active cache");
+		CLog::Get()->LogFunction(LOG_WARNING, "cache_get_field_name", "no active cache");
 		return 0; 
 	}
 	
 	char *FieldName = NULL;
-
 	Result->GetFieldName(params[1], &FieldName);
 
 	if(FieldName == NULL) {
 		FieldName = (char *)malloc(5 * sizeof(char));
 		strcpy(FieldName, "NULL");
-		AMX_H->SetCString(amx, params[2], FieldName, params[4]);
+		StrAmx::SetCString(amx, params[2], FieldName, params[4]);
 		free(FieldName);
 	}
 	else
-		AMX_H->SetCString(amx, params[2], FieldName, params[4]);
+		StrAmx::SetCString(amx, params[2], FieldName, params[4]);
 	return 1;
 }
 
@@ -239,17 +237,12 @@ cell AMX_NATIVE_CALL Native::cache_get_row(AMX* amx, cell* params) {
 	}
 
 	char *RowData = NULL;
-
 	Result->GetRowData(params[1], params[2], &RowData);
 
-	if(RowData == NULL) {
-		RowData = (char *)malloc(5 * sizeof(char));
-		strcpy(RowData, "NULL");
-		AMX_H->SetCString(amx, params[3], RowData, params[5]);
-		free(RowData);
-	}
+	if(RowData == NULL)
+		StrAmx::SetCString(amx, params[3], "NULL", params[5]);
 	else
-		AMX_H->SetCString(amx, params[3], RowData, params[5]);
+		StrAmx::SetCString(amx, params[3], RowData, params[5]);
 	return 1;
 }
 
@@ -276,7 +269,6 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 	}
 
 	char *RowData = NULL;
-	
 	if(Result->GetRowData(params[1], params[2], &RowData) != TYPE_INT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_int", "invalid data type");
 		ReturnVal = 0;
@@ -345,17 +337,19 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content(AMX* amx, cell* params) {
 	
 	char *FieldName = NULL;
 	char *FieldData = NULL;
-	
 	amx_StrParam(amx, params[2], FieldName);
-	Result->GetRowDataByName(params[1], FieldName, &FieldData);
-	if(FieldData == NULL) {
-		FieldData = (char *)malloc(5 * sizeof(char));
-		strcpy(FieldData, "NULL");
-		AMX_H->SetCString(amx, params[3], FieldData, params[5]);
-		free(FieldData);
+
+	if(FieldName == NULL) {
+		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content", "empty field name specified");
+		return 0;
 	}
+
+	Result->GetRowDataByName(params[1], FieldName, &FieldData);
+
+	if(FieldData == NULL)
+		StrAmx::SetCString(amx, params[3], "NULL", params[5]);
 	else
-		AMX_H->SetCString(amx, params[3], FieldData, params[5]);
+		StrAmx::SetCString(amx, params[3], FieldData, params[5]);
 	
 	return 1;
 }
@@ -380,15 +374,18 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 
 	if(Result == NULL) {
 		CLog::Get()->LogFunction(LOG_WARNING, "cache_get_field_content_int", "no active cache");
-		return amx_ftoc(ReturnVal);
+		return 0;
 	}
 	
 
 	char *FieldName = NULL;
 	char *FieldData = NULL;
-
 	amx_StrParam(amx, params[2], FieldName);
 
+	if(FieldName == NULL) {
+		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_int", "empty field name specified");
+		return 0;
+	}
 
 	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_INT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_int", "invalid data type");
@@ -424,8 +421,12 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 
 	char *FieldName = NULL;
 	char *FieldData = NULL;
-
 	amx_StrParam(amx, params[2], FieldName);
+
+	if(FieldName == NULL) {
+		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_float", "empty field name specified");
+		return amx_ftoc(ReturnVal);
+	}
 
 	if(Result->GetRowDataByName(params[1], FieldName, &FieldData) != TYPE_FLOAT) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_float", "invalid data type");
@@ -436,27 +437,53 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 	return amx_ftoc(ReturnVal);
 }
 
-//native mysql_connect(const host[], const user[], const database[], const password[], port = 3306);
+//native mysql_connect(const host[], const user[], const database[], const password[], port = 3306, bool:autoreconnect = true);
 cell AMX_NATIVE_CALL Native::mysql_connect(AMX* amx, cell* params) {
-	bool match = false;
-	string 
-		host, user, db, pass;
-	unsigned int 
-		port = params[5];
+	CLog::Get()->LogFunction(LOG_DEBUG, "mysql_connect", "");
 
-	AMX_H->GetString(amx, params[1], host);
-	AMX_H->GetString(amx, params[2], user);
-	AMX_H->GetString(amx, params[3], db);
-	AMX_H->GetString(amx, params[4], pass);
+	char
+		*host = NULL, 
+		*user = NULL, 
+		*db = NULL, 
+		*pass = NULL;
+
+	amx_StrParam(amx, params[1], host);
+	amx_StrParam(amx, params[2], user);
+	amx_StrParam(amx, params[3], db);
+	amx_StrParam(amx, params[4], pass);
+	if(host == NULL || user == NULL || db == NULL) {
+		CLog::Get()->LogFunction(LOG_ERROR, "mysql_connect", "empty connection data specified");
+		return 0;
+	}
 	
-	CLog::Get()->LogFunction(LOG_DEBUG, "mysql_connect", "-");
+	int CID = CMySQLHandle::Create(host, user, pass != NULL ? pass : "", db, (size_t)params[5], !!params[6]);
 
-	int CID = CMySQLHandle::Create(host, user, pass, db, port);
-
-	CMySQLQuery::PushConnect(CMySQLHandle::GetHandle(CID));
-	while(CMySQLHandle::GetHandle(CID)->GetMySQLPointer() == NULL) { }
-
+	CMySQLHandle::GetHandle(CID)->Connect();
 	return (cell)CID;
+}
+
+//native mysql_close(connectionHandle = 1, bool:wait = true);
+cell AMX_NATIVE_CALL Native::mysql_close(AMX* amx, cell* params) {
+	unsigned int cID = params[1];
+
+	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
+		char LogBuf[32];
+		sprintf(LogBuf, "connection handle: %d", cID);
+		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_close", LogBuf);
+	}
+
+	if(!CMySQLHandle::IsValid(cID)) {
+		ERROR_INVALID_CONNECTION_HANDLE("mysql_close", cID);
+		return 0;
+	}
+
+	if(!!params[2] == true)
+		CMySQLQuery::WaitForThreadPool();
+
+	CMySQLHandle *Handle = CMySQLHandle::GetHandle(cID);
+	Handle->Disconnect();
+	Handle->Destroy();
+	return 1;
 }
 
 //native mysql_reconnect(connectionHandle = 1);
@@ -474,8 +501,13 @@ cell AMX_NATIVE_CALL Native::mysql_reconnect(AMX* amx, cell* params) {
 		return 0;
 	}
 	
-	CMySQLQuery::PushReconnect(CMySQLHandle::GetHandle(cID));
-	return 1;
+	bool ReturnVal = false;
+	CMySQLHandle *Handle = CMySQLHandle::GetHandle(cID);
+	Handle->MySQLMutex.Lock();
+	Handle->Disconnect();
+	ReturnVal = Handle->Connect() == 0 ? true : false;
+	Handle->MySQLMutex.Unlock();
+	return ReturnVal;
 }
 
 //native mysql_tquery(conhandle, query[], callback[], format[], {Float,_}:...);
@@ -494,23 +526,29 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 		return 0;
 	}
 
-	string ParamFormat;
-	AMX_H->GetString(amx, params[4], ParamFormat);
+	char *ParamFormat = NULL;
+	amx_StrParam(amx, params[4], ParamFormat);
 
 
-	if(ParamFormat.length() != ( (params[0]/4) - ConstParamCount ))
+	if(ParamFormat != NULL && strlen(ParamFormat) != ( (params[0]/4) - ConstParamCount ))
 		return CLog::Get()->LogFunction(LOG_ERROR, "mysql_tquery", "callback parameter count does not match format specifier length"), 0;
 
 	CMySQLHandle *cHandle = CMySQLHandle::GetHandle(cID);
 	CMySQLQuery *Query = new CMySQLQuery;
 	CCallback *Callback = new CCallback;
 	
-	AMX_H->GetString(amx, params[2], Query->Query);
-	AMX_H->GetString(amx, params[3], Callback->Name);
+	char *tmpBuf = NULL;
+	amx_StrParam(amx, params[2], tmpBuf);
+	if(tmpBuf != NULL)
+		Query->Query.assign(tmpBuf);
+
+	amx_StrParam(amx, params[3], tmpBuf);
+	if(tmpBuf != NULL)
+		Callback->Name.assign(tmpBuf);
 	
-	Callback->ParamFormat = ParamFormat;
+	if(ParamFormat != NULL)
+		Callback->ParamFormat.assign(ParamFormat);
 	Query->ConnHandle = cHandle; 
-	Query->ConnPtr = cHandle->GetMySQLPointer();
 	Query->Callback = Callback;
 	if(Query->Callback->Name.find("FJ37DH3JG") != -1) {
 		Query->Callback->IsInline = true;
@@ -518,42 +556,50 @@ cell AMX_NATIVE_CALL Native::mysql_tquery(AMX* amx, cell* params) {
 	}
 	
 	
-	int idx = 1;
-	char *szArg;
+	unsigned int ParamIdx = 1;
 	cell *AddressPtr;
 	
 	for(string::iterator c = Callback->ParamFormat.begin(), end = Callback->ParamFormat.end(); c != end; ++c) {
 		if ( (*c) == 'd' || (*c) == 'i') {
-			amx_GetAddr(amx, params[ConstParamCount + idx], &AddressPtr);
-			szArg = (char*)malloc(sizeof(char) * 12); // strlen of (-2^31) + '\0'
-			if(szArg != NULL)
-				itoa(*AddressPtr, szArg, 10);
-		} else if ( (*c) == 's' || (*c) == 'z') {
-			AMX_H->GetCString(amx, params[ConstParamCount + idx], szArg);
-		} else if ( (*c) == 'f') {
-			amx_GetAddr(amx, params[ConstParamCount + idx], &AddressPtr);
+			amx_GetAddr(amx, params[ConstParamCount + ParamIdx], &AddressPtr);
+			char IntBuf[12]; //12 -> strlen of (-2^31) + '\0'
+			itoa(*AddressPtr, IntBuf, 10);
+			Callback->Parameters.push(IntBuf);
+		} 
+		else if ( (*c) == 's' || (*c) == 'z') {
+			char *StrBuf = NULL;
+			amx_StrParam(amx, params[ConstParamCount + ParamIdx], StrBuf);
+			if(StrBuf != NULL)
+				Callback->Parameters.push(string(StrBuf));
+			else
+				Callback->Parameters.push("");
+		} 
+		else if ( (*c) == 'f') {
+			amx_GetAddr(amx, params[ConstParamCount + ParamIdx], &AddressPtr);
 			float pFloat = amx_ctof(*AddressPtr);
-			szArg = (char*)malloc(sizeof(char) * 84); // strlen of (2^(2^7)) + '\0'
-			if(szArg != NULL)
-				sprintf(szArg, "%f", pFloat);
-		} else {
-			szArg = (char*)malloc(sizeof(char) * 5); // "NULL" + '\0'
-			if(szArg != NULL)
-				strcpy(szArg, "NULL"); // Avoids crashes caused by invalid formatting characters.
-		}
-		Callback->Parameters.push(string(szArg));
-		free(szArg);
+
+			char FloatBuf[84]; //84 -> strlen of (2^(2^7)) + '\0'
+			sprintf(FloatBuf, "%f", pFloat);
+			Callback->Parameters.push(FloatBuf);
+		} 
+		else 
+			Callback->Parameters.push("NULL");
 		
-		idx++;
+		ParamIdx++;
 	}
 	
 	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-		char LogBuf[512];
-		sprintf(LogBuf, "pushing query \"%s\"..", Query->Query.c_str());
+		char LogBuf[1048];
+		string ShortenQuery(Query->Query);
+		ShortenQuery.resize(1024);
+		sprintf(LogBuf, "scheduling query \"%s\"..", ShortenQuery.c_str());
 		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_tquery", LogBuf);
 	}
 	
-	CMySQLQuery::PushQuery(Query);
+	if(CMySQLQuery::IsThreadPoolInitialized())
+		CMySQLQuery::ScheduleQuery(Query);
+	else
+		Query->Execute();
 	return 1;
 }
 
@@ -578,26 +624,42 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 	size_t DestLen = (size_t)params[3];
 	char *Format = NULL;
 	amx_StrParam(amx, params[4], Format);
+	if(Format == NULL)
+		return 0;
 
 	char *Output = (char *)malloc(sizeof(char) * DestLen * 2); //*2 just for safety
 	char *OrgOutput = Output;
 	memset(Output, 0, sizeof(char) * DestLen * 2);
 
 	const unsigned int FirstParam = 5;
-	unsigned int NumArgs = (params[0] / sizeof(cell))-4; //-4 because of params[0]
+	unsigned int NumArgs = (params[0] / sizeof(cell));
+	unsigned int NumDynArgs = NumArgs - (FirstParam - 1);
 	unsigned int ParamCounter = 0;
-	
 
 	for( ; *Format != '\0'; ++Format) {
 		
 		if(strlen(OrgOutput) >= DestLen) {
-			CLog::Get()->LogFunction(LOG_ERROR, "mysql_format", "destination length is too low");
+			CLog::Get()->LogFunction(LOG_ERROR, "mysql_format", "destination size is too small");
 			break;
 		}
 		
 		if(*Format == '%') {
 			++Format;
 
+			if(*Format == '%') {
+				*Output = '%';
+				++Output;
+				continue;
+			}
+
+			if(ParamCounter >= NumDynArgs) {
+				if(CLog::Get()->IsLogLevel(LOG_ERROR)) {
+					char LogBuf[128];
+					sprintf(LogBuf, "no value for specifier \"%%%c\" available", *Format);
+					CLog::Get()->LogFunction(LOG_ERROR, "mysql_format", LogBuf);
+				}
+				continue;
+			}
 
 			bool SpaceWidth = true;
 			int Width = -1;
@@ -622,10 +684,8 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 				++Format;
 			}
 
-			//printf("\nSpaceWidth: %s\nWidth: %d\nPrecision: %d\n", SpaceWidth == true ? "yes" : "no", Width, Precision);
-
 			amx_GetAddr(amx, params[FirstParam + ParamCounter], &AddressPtr);
-
+			
 			switch (*Format) {
 				case 'i': 
 				case 'I':
@@ -656,10 +716,13 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 				{
 					char *StrBuf = NULL;
 					amx_StrParam(amx, params[FirstParam + ParamCounter], StrBuf);
-					for(size_t c=0, len = strlen(StrBuf); c < len; ++c) {
-						*Output = StrBuf[c];
-						++Output;
+					if(StrBuf != NULL) {
+						for(size_t c=0, len = strlen(StrBuf); c < len; ++c) {
+							*Output = StrBuf[c];
+							++Output;
+						}
 					}
+					
 					break;
 				}
 				case 'f':
@@ -685,9 +748,11 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 						sprintf(SpecBuf, "%%f");
 					
 					sprintf(FloatBuf, SpecBuf, FloatVal);
-					
-					sprintf(Output, FloatBuf);
-					Output += strlen(FloatBuf);
+
+					for(size_t c=0, len = strlen(FloatBuf); c < len; ++c) {
+						*Output = FloatBuf[c];
+						++Output;
+					}
 					break;
 				}
 				case 'e': 
@@ -695,15 +760,17 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 				{
 					char *StrBuf = NULL;
 					amx_StrParam(amx, params[FirstParam + ParamCounter], StrBuf);
+					if(StrBuf != NULL) {
+						size_t StrBufLen = strlen(StrBuf);
+						char *EscapeBuf = (char *)alloca(sizeof(char) * (StrBufLen*2) + 1);
 
-					size_t StrBufLen = strlen(StrBuf);
-					char *EscapeBuf = (char *)alloca(sizeof(char) * (StrBufLen*2) + 1);
+						mysql_real_escape_string(ConnPtr, EscapeBuf, StrBuf, StrBufLen);
 
-					mysql_real_escape_string(ConnPtr, EscapeBuf, StrBuf, StrBufLen);
-
-					sprintf(Output, EscapeBuf);
-					Output += strlen(EscapeBuf);
-
+						for(size_t c=0, len = strlen(EscapeBuf); c < len; ++c) {
+							*Output = EscapeBuf[c];
+							++Output;
+						}
+					}
 					break;
 				}
 				case 'X':
@@ -728,9 +795,10 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 					memset(HexBuf, 0, 16);
 					itoa(*AddressPtr, HexBuf, 16);
 
-					sprintf(Output, HexBuf);
-					Output += strlen(HexBuf);
-
+					for(size_t c=0, len = strlen(HexBuf); c < len; ++c) {
+						*Output = HexBuf[c];
+						++Output;
+					}
 					break;
 				}
 				case 'b':
@@ -740,9 +808,10 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 					memset(BinBuf, 0, 32);
 					itoa(*AddressPtr, BinBuf, 2);
 
-					sprintf(Output, BinBuf);
-					Output += strlen(BinBuf);
-
+					for(size_t c=0, len = strlen(BinBuf); c < len; ++c) {
+						*Output = BinBuf[c];
+						++Output;
+					}
 					break;
 				}
 				default: {
@@ -763,9 +832,9 @@ cell AMX_NATIVE_CALL Native::mysql_format(AMX* amx, cell* params) {
 	}
 	
 	*Output = '\0';
-	AMX_H->SetCString(amx, params[2], OrgOutput, DestLen);
+	StrAmx::SetCString(amx, params[2], OrgOutput, DestLen);
 	free(OrgOutput);
-	return 1;
+	return (cell)(Output-OrgOutput);
 }
 
 //native mysql_set_charset(charset[], connectionHandle = 1);
@@ -783,10 +852,16 @@ cell AMX_NATIVE_CALL Native::mysql_set_charset(AMX* amx, cell* params) {
 		return 0;
 	}
 
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	string CharSet;
-	AMX_H->GetString(amx, params[1], CharSet);
-	mysql_set_character_set(ConnPtr, CharSet.c_str());
+	CMySQLHandle *Handle = CMySQLHandle::GetHandle(cID);
+
+	char *CharSet = NULL;
+	amx_StrParam(amx, params[1], CharSet);
+	if(CharSet != NULL) {
+		Handle->MySQLMutex.Lock();
+		mysql_set_character_set(Handle->GetMySQLPointer(), CharSet);
+		Handle->CallErrno();
+		Handle->MySQLMutex.Unlock();
+	}
 	
 	return 1;
 }
@@ -806,10 +881,17 @@ cell AMX_NATIVE_CALL Native::mysql_get_charset(AMX* amx, cell* params) {
 		return 0;
 	}
 
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	string CharSet = mysql_character_set_name(ConnPtr);
-	AMX_H->SetString(amx, params[1], CharSet, params[3]);
-	
+	CMySQLHandle *Handle = CMySQLHandle::GetHandle(cID);
+
+	Handle->MySQLMutex.Lock();
+	const char *CharSet = mysql_character_set_name(Handle->GetMySQLPointer());
+	Handle->CallErrno();
+	Handle->MySQLMutex.Unlock();
+
+	if(CharSet != NULL)
+		StrAmx::SetCString(amx, params[1], CharSet, params[3]);
+	else
+		StrAmx::SetCString(amx, params[1], "NULL", params[3]);
 	return 1;
 }
 
@@ -829,37 +911,28 @@ cell AMX_NATIVE_CALL Native::mysql_escape_string(AMX* amx, cell* params) {
 	}
 	
 	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	size_t DestLength = (params[4] <= 0 ? 8192 : params[4]);
 
 	char *Source = NULL;
 	amx_StrParam(amx, params[1], Source);
+	if(Source == NULL)
+		return 0;
 
-	char *StrBuffer = (char *)malloc(DestLength*2+1);
-	memset(StrBuffer, 0, DestLength*2 + 1);
+	size_t DestLen = (params[4] <= 0 ? 8192 : params[4]);
+	size_t SourceLen = strlen(Source);
+
+	if(SourceLen > DestLen) {
+		CLog::Get()->LogFunction(LOG_ERROR, "mysql_real_escape_string", "destination size is too small");
+		return 0;
+	}
+
+	char *StrBuffer = (char *)malloc(DestLen*2+1);
+	memset(StrBuffer, 0, DestLen*2 + 1);
 
 	cell StringLen = (cell)mysql_real_escape_string(ConnPtr, StrBuffer, Source, strlen(Source));
 	
-	AMX_H->SetCString(amx, params[2], StrBuffer, params[4]);
+	StrAmx::SetCString(amx, params[2], StrBuffer, params[4]);
 	free(StrBuffer);
 	return StringLen; 
-}
-
-cell AMX_NATIVE_CALL Native::mysql_close(AMX* amx, cell* params) {
-	unsigned int cID = params[1];
-	
-	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-		char LogBuf[32];
-		sprintf(LogBuf, "connection handle: %d", cID);
-		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_close", LogBuf);
-	}
-
-	if(!CMySQLHandle::IsValid(cID)) {
-		ERROR_INVALID_CONNECTION_HANDLE("mysql_close", cID);
-		return 0;
-	}
-	
-	CMySQLQuery::PushDisconnect(CMySQLHandle::GetHandle(cID));
-	return 1;
 }
 
 //native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
@@ -877,11 +950,36 @@ cell AMX_NATIVE_CALL Native::mysql_stat(AMX* amx, cell* params) {
 		return 0;
 	}
 	
-	MYSQL *ConnPtr = CMySQLHandle::GetHandle(cID)->GetMySQLPointer();
-	string Stats = string(mysql_stat(ConnPtr));
-	AMX_H->SetString(amx, params[1], Stats, params[3]);
-	
+	CMySQLHandle *Handle = CMySQLHandle::GetHandle(cID);
+
+	Handle->MySQLMutex.Lock();
+	const char *Stats = mysql_stat(Handle->GetMySQLPointer());
+	Handle->CallErrno();
+	Handle->MySQLMutex.Unlock();
+
+	if(Stats != NULL)
+		StrAmx::SetCString(amx, params[1], Stats, params[3]);
+	else
+		StrAmx::SetCString(amx, params[1], "NULL", params[3]);
 	return 1;
+}
+
+//native mysql_errno(connectionHandle = 1);
+cell AMX_NATIVE_CALL Native::mysql_errno(AMX* amx, cell* params) {
+	unsigned int cID = params[1];
+
+	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
+		char LogBuf[32];
+		sprintf(LogBuf, "connection handle: %d", cID);
+		CLog::Get()->LogFunction(LOG_DEBUG, "mysql_errno", LogBuf);
+	}
+
+	if(!CMySQLHandle::IsValid(cID)) {
+		ERROR_INVALID_CONNECTION_HANDLE("mysql_errno", cID);
+		return 0;
+	}
+
+	return (cell)CMySQLHandle::GetHandle(cID)->GetErrno();
 }
 
 //native mysql_log(loglevel, logtype);

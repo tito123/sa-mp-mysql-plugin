@@ -1,5 +1,4 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS
 
 #include "CMySQLQuery.h"
 #include "CMySQLResult.h"
@@ -8,27 +7,23 @@
 
 #include <boost/lexical_cast.hpp>
 
-CMutex CMySQLQuery::MySQLMutex;
 
-boost::lockfree::queue<
-		CMySQLQuery*, 
-		boost::lockfree::fixed_sized<true>,
-		boost::lockfree::capacity<10000>
-	> CMySQLQuery::m_QueryQueue;
+boost::threadpool::pool *CMySQLQuery::QueryThreadPool = NULL;
 
-queue <CMySQLHandle*> CMySQLQuery::ConnectQueue;
-queue <CMySQLHandle*> CMySQLQuery::DisconnectQueue;
-queue <CMySQLHandle*> CMySQLQuery::ReconnectQueue;
+void CMySQLQuery::Execute() {
+	if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
+		char LogFuncBuf[128];
+		sprintf2(LogFuncBuf, "ExecuteT[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
+		CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "starting query execution", true);
+	}
 
-
-
-void CMySQLQuery::ExecuteT() {
 	Result = NULL;
-
+	MYSQL *ConnPtr = ConnHandle->GetMySQLPointer();
+	
 	if(ConnPtr != NULL) {
 
-		MySQLMutex.Lock();
-		
+		ConnHandle->MySQLMutex.Lock();
+
 		int QueryErrorID = mysql_real_query(ConnPtr, Query.c_str(), Query.length());
 		if (QueryErrorID == 0) {
 			
@@ -41,7 +36,7 @@ void CMySQLQuery::ExecuteT() {
 			MYSQL_RES *SQLResult;
 			SQLResult = mysql_store_result(ConnPtr);
 
-			MySQLMutex.Unlock();
+			ConnHandle->MySQLMutex.Unlock();
 
 			if(Callback->Name.length() != 0) { //why should we process the result if it won't and can't be used?
 				if (SQLResult != NULL) {
@@ -105,7 +100,7 @@ void CMySQLQuery::ExecuteT() {
 				
 					Result->m_WarningCount = mysql_warning_count(ConnPtr);
 					Result->m_AffectedRows = mysql_affected_rows(ConnPtr);
-					Result->m_InsertID = mysql_insert_id(ConnPtr);
+					Result->m_InsertID = mysql_insert_id(ConnPtr); 
 				}
 			
 				//forward Query to Callback handler
@@ -131,7 +126,7 @@ void CMySQLQuery::ExecuteT() {
 
 			int ErrorID = mysql_errno(ConnPtr);
 			string ErrorString(mysql_error(ConnPtr));
-			MySQLMutex.Unlock();
+			ConnHandle->MySQLMutex.Unlock();
 
 			if(ErrorID != 1065 && Callback != NULL) {
 				
@@ -139,25 +134,27 @@ void CMySQLQuery::ExecuteT() {
 					char LogFuncBuf[128];
 					sprintf2(LogFuncBuf, "ExecuteT[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
 
-					char LogMsgBuf[512];
+					char LogMsgBuf[2048];
 					sprintf2(LogMsgBuf, "(error #%d) %s", ErrorID, ErrorString.c_str());
 					CLog::Get()->LogFunction(LOG_ERROR, LogFuncBuf, LogMsgBuf, true);
 					
 					CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "error will be triggered in OnQueryError", true);
 				}
 				
-				if(ErrorID == 2006) { 
+				if(ConnHandle->IsAutoReconnectEnabled() && ErrorID == 2006) { 
 					if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
 						char LogFuncBuf[128];
 						sprintf2(LogFuncBuf, "ExecuteT[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
-						CLog::Get()->LogFunction(LOG_WARNING, LogFuncBuf, "lost connection, requesting reconnect", true);
+						CLog::Get()->LogFunction(LOG_WARNING, LogFuncBuf, "lost connection, reconnecting..", true);
 					}
-					
+
 					MYSQL_RES *SQLRes;
 					if ((SQLRes = mysql_store_result(ConnPtr)) != NULL)  {
-							mysql_free_result(SQLRes);
+						mysql_free_result(SQLRes);
 					}
-					PushReconnect(ConnHandle);
+					
+					ConnHandle->Disconnect(true);
+					ConnHandle->Connect(true);
 				}
 
 				//forward OnQueryError(errorid, error[], callback[], query[], connectionHandle);

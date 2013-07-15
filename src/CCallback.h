@@ -18,7 +18,6 @@ class CMySQLQuery;
 
 class CCallback {
 public:
-	friend class CMySQLQuery;
 
 	static void ProcessCallbacks();
 	
@@ -53,6 +52,9 @@ public:
 		ParamFormat = rhs.ParamFormat;
 		IsInline = rhs.IsInline;
 	}
+
+
+	static void ClearAll();
 
 private:
 	static boost::lockfree::queue<

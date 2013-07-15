@@ -3,9 +3,9 @@
 #define INC_CMYSQLHANDLE_H
 
 
-//#include <sstream>
+
 #include <string>
-#include <map>
+#include <boost/unordered_map.hpp>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -16,7 +16,7 @@
 
 
 using std::string;
-using std::map;
+using boost::unordered_map;
 
 
 #define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
@@ -33,39 +33,36 @@ class CMySQLResult;
 
 class CMySQLHandle {
 public:
-	friend class CMySQLQuery;
-	friend class CCallback;
 	
-	CMySQLHandle(string host, string user, string passw, string db, size_t port);
+	CMySQLHandle(string host, string user, string passw, string db, size_t port, bool reconnect);
 	~CMySQLHandle();
 
 	static bool IsValid(int id);
 
-	bool ConnectT(); //should not be called in main thread
-	void DisconnectT(); //should not be called in main thread
+	int Connect(bool threaded = false);
+	void Disconnect(bool threaded = false);
 
 
-	static int Create(string host, string user, string pass, string db, size_t port);
+	static int Create(string host, string user, string pass, string db, size_t port, bool reconnect);
+	void Destroy();
 
 	static CMySQLHandle *GetHandle(int cid) {
-		SQLHandleMutex.Lock();
 		CMySQLHandle *Result = NULL;
 		Result = SQLHandle.at(cid);
-		SQLHandleMutex.Unlock();
 		return Result;
 	}
 
 	MYSQL *GetMySQLPointer() {
-		SQLHandleMutex.Lock();
-		MYSQL *ptr = m_ThreadConnPtr;
-		SQLHandleMutex.Unlock();
+		MySQLMutex.Lock();
+		MYSQL *ptr = m_MySQLConnPtr;
+		MySQLMutex.Unlock();
 		return ptr;
 	}
 
 	void SetMySQLPointer(MYSQL *mysqlptr) {
-		SQLHandleMutex.Lock();
-		m_ThreadConnPtr = mysqlptr;
-		SQLHandleMutex.Unlock();
+		MySQLMutex.Lock();
+		m_MySQLConnPtr = mysqlptr;
+		MySQLMutex.Unlock();
 	}
 	
 	void SetNewResult(CMySQLResult *result) {
@@ -89,24 +86,38 @@ public:
 		return m_CID;
 	}
 
-	
+	inline bool IsAutoReconnectEnabled() const {
+		return m_AutoReconnect;
+	}
+
+	int CallErrno() {
+		m_ErrnoVal = mysql_errno(m_MySQLConnPtr);
+		return m_ErrnoVal;
+	}
+	inline int GetErrno() const {
+		return m_ErrnoVal;
+	}
+
+	CMutex MySQLMutex;
+	static void ClearAll();
 private:
-	static CMutex SQLHandleMutex;
-	static map<int, CMySQLHandle *> SQLHandle;
+	static unordered_map<int, CMySQLHandle *> SQLHandle;
 	
-	map<int, CMySQLResult*> m_SavedResults;
+	unordered_map<int, CMySQLResult*> m_SavedResults;
 
 	CMySQLResult *m_ActiveResult;
 	int m_ActiveResultID; //ID of stored result; 0 if not stored yet
 	
 
 	bool m_Connected;
+	bool m_AutoReconnect;
 	int m_CID;
+	int m_ErrnoVal;
 
 	string m_Hostname, m_Username, m_Password, m_Database;
 	size_t m_iPort;
 
-	MYSQL *m_ThreadConnPtr;
+	MYSQL *m_MySQLConnPtr;
 };
 
 
