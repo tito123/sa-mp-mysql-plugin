@@ -1,15 +1,11 @@
 /**
- * MySQL plugin R27
+ * MySQL plugin R28
  */
 
 #if defined mysql_included
 	#endinput
 #endif
 #define mysql_included
-
-#if defined MYSQL_USE_YINLINE
-	#include "YSI\y_inline.inc"
-#endif
 
 /**
  * Common error codes
@@ -45,6 +41,9 @@ enum e_LogType {
 #define mysql_warning_count cache_warning_count
 #define mysql_real_escape_string mysql_escape_string
 
+//cache_get_field
+#define cache_get_field(%0) cache_get_field_name(%0)
+
 // mysql_function_query(conHandle, query[], bool:cache, callback[], format[], {Float,_}:...)
 #define mysql_function_query(%0,%1,%2,%3,"%4"%5) mysql_tquery(%0,%1,%3,#%4%5)
 
@@ -65,10 +64,11 @@ enum e_LogType {
 
 // Natives
 native mysql_log(loglevel = LOG_ERROR | LOG_WARNING, logtype = LOG_TYPE_TEXT);
-native mysql_connect(const host[], const user[], const database[], const password[], port = 3306);
-native mysql_close(connectionHandle = 1);
+native mysql_connect(const host[], const user[], const database[], const password[], port = 3306, bool:autoreconnect = true);
+native mysql_close(connectionHandle = 1, bool:wait = true);
 native mysql_reconnect(connectionHandle = 1);
 
+native mysql_errno(connectionHandle = 1);
 native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_tquery(connectionHandle, query[], callback[], format[], {Float,_}:...);
@@ -81,7 +81,7 @@ native mysql_set_charset(charset[], connectionHandle = 1);
 
 // Cache functions.
 native cache_get_data(&num_rows, &num_fields, connectionHandle = 1);
-native cache_get_field(field_index, destination[], connectionHandle = 1, max_len=sizeof(destination));
+native cache_get_field_name(field_index, destination[], connectionHandle = 1, max_len=sizeof(destination));
 
 native cache_get_row(row, idx, destination[], connectionHandle = 1, max_len=sizeof(destination));
 native cache_get_row_int(row, idx, connectionHandle = 1);
@@ -101,7 +101,8 @@ native cache_warning_count(connectionHandle = 1);
 
 
 #if defined MYSQL_USE_YINLINE
-
+	#include "YSI\y_inline.inc"
+	
 	new g_MySQL_InlineData[500][E_CALLBACK_DATA];
 	new g_MySQL_InlineCounter = 0;
 
@@ -192,13 +193,13 @@ stock mysql_fetch_row_format(destination[], const delimiter[] = "|", connectionH
 			strcat(destination, delimiter, max_len);
 			
 		}
-		new tmp[512];
+		new row_val_tmp[512];
 		new RIDX = RowIndex[connectionHandle];
-		cache_get_row(RIDX < 0 ? 0 : RIDX, f, tmp, connectionHandle);
+		cache_get_row(RIDX < 0 ? 0 : RIDX, f, row_val_tmp, connectionHandle);
 		if(f == 0)
-			strins(destination, tmp, 0, max_len);
+			strins(destination, row_val_tmp, 0, max_len);
 		else
-			strcat(destination, tmp, max_len);
+			strcat(destination, row_val_tmp, max_len);
 	}
 }
 

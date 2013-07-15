@@ -14,13 +14,13 @@ namespace Native {
 	cell AMX_NATIVE_CALL mysql_connect(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_close(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_reconnect(AMX* amx, cell* params);
-	
+
+	cell AMX_NATIVE_CALL mysql_errno(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_escape_string(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_format(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_tquery(AMX* amx, cell* params);
 
 	
-	//ASync functions
 	cell AMX_NATIVE_CALL mysql_stat(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_set_charset(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_get_charset(AMX* amx, cell* params);
@@ -28,7 +28,7 @@ namespace Native {
 
 	//Cache functions
 	cell AMX_NATIVE_CALL cache_get_data(AMX* amx, cell* params);
-	cell AMX_NATIVE_CALL cache_get_field(AMX* amx, cell* params);
+	cell AMX_NATIVE_CALL cache_get_field_name(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL cache_get_row(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL cache_get_row_int(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL cache_get_row_float(AMX* amx, cell* params);

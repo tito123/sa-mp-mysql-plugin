@@ -5,7 +5,9 @@
 
 #include <queue>
 #include <string>
-#include "boost/lockfree/queue.hpp"
+
+#define BOOST_THREAD_DONT_USE_CHRONO
+#include "boost/threadpool.hpp"
 
 using std::queue;
 using std::string;
@@ -18,78 +20,44 @@ class CMySQLResult;
 
 class CMySQLQuery {
 public:
-	static void ProcessQueryT();
-	
 	CMySQLQuery() :
 		ConnHandle(NULL),
-		ConnPtr(NULL),
 		Result(NULL),
 		Callback(NULL)
 	{ }
 	~CMySQLQuery() {}
-	CMySQLQuery(const CMySQLQuery &rhs) {
-		Query = rhs.Query;
-		ConnHandle = rhs.ConnHandle;
-		ConnPtr = rhs.ConnPtr;
-		Result = rhs.Result;
-		Callback = rhs.Callback;
-	}
-	void operator=(const CMySQLQuery &rhs) {
-		Query = rhs.Query;
-		ConnHandle = rhs.ConnHandle;
-		ConnPtr = rhs.ConnPtr;
-		Result = rhs.Result;
-		Callback = rhs.Callback;
-	}
 	
 	string Query;
-	CMySQLHandle *ConnHandle;
-	MYSQL *ConnPtr;
 
+	CMySQLHandle *ConnHandle;
 	CMySQLResult *Result;
 	CCallback *Callback;
 
-	static void PushQuery(CMySQLQuery *query) {
-		m_QueryQueue.push(query);
+	static inline void ScheduleQuery(CMySQLQuery *query) {
+		QueryThreadPool->schedule(boost::bind(&Execute, query));
 	}
 
-	static CMySQLQuery *GetNextQuery() {
-		CMySQLQuery *Query = NULL;
-		m_QueryQueue.pop(Query);
-		return Query;
-	}
+	void Execute();
 
-	void ExecuteT();
-
-
-	static void PushConnect(CMySQLHandle *handle) {
-		CMySQLHandle::SQLHandleMutex.Lock();
-		ConnectQueue.push(handle);
-		CMySQLHandle::SQLHandleMutex.Unlock();
+	static void InitializeThreadPool(size_t numthreads) {
+		if(QueryThreadPool == NULL && numthreads > 0)
+			QueryThreadPool = new boost::threadpool::pool(numthreads);
 	}
-	static void PushDisconnect(CMySQLHandle *handle) {
-		CMySQLHandle::SQLHandleMutex.Lock();
-		DisconnectQueue.push(handle);
-		CMySQLHandle::SQLHandleMutex.Unlock();
+	static void DeleteThreadPool() {
+		if(QueryThreadPool != NULL) {
+			QueryThreadPool->wait(0);
+			delete QueryThreadPool;
+		}
 	}
-	static void PushReconnect(CMySQLHandle *handle) {
-		CMySQLHandle::SQLHandleMutex.Lock();
-		ReconnectQueue.push(handle);
-		CMySQLHandle::SQLHandleMutex.Unlock();
+	static bool IsThreadPoolInitialized() {
+		return QueryThreadPool == NULL ? false : true;
 	}
-
+	static void WaitForThreadPool() {
+		if(QueryThreadPool != NULL)
+			QueryThreadPool->wait(0);
+	}
 private:
-	static CMutex MySQLMutex;
-	static boost::lockfree::queue<
-			CMySQLQuery*, 
-			boost::lockfree::fixed_sized<true>,
-			boost::lockfree::capacity<10000>
-		> m_QueryQueue;
-	
-
-	static queue <CMySQLHandle*> ConnectQueue;
-	static queue <CMySQLHandle*> DisconnectQueue;
-	static queue <CMySQLHandle*> ReconnectQueue;
+	static boost::threadpool::pool *QueryThreadPool;
 };
 
 #endif

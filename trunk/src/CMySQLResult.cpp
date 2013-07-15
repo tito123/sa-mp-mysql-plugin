@@ -4,13 +4,12 @@
 #include "CMySQLResult.h"
 
 
-
 unsigned short CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 	if (idx < m_Fields) {
 		(*dest) = const_cast<char*>(m_FieldNames.at(idx).c_str());
 
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogMsgBuf[128];
+			char LogMsgBuf[256];
 			sprintf2(LogMsgBuf, "index: '%d', name: \"%s\"", idx, *dest);
 			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetFieldName", LogMsgBuf);
 		}
@@ -34,8 +33,10 @@ unsigned short CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx,
 		(*dest) = const_cast<char*>(m_Data.at(row).at(fieldidx).c_str());
 
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogMsgBuf[512];
-			sprintf2(LogMsgBuf, "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, *dest);
+			char LogMsgBuf[1096];
+			string ShortenDest(*dest);
+			ShortenDest.resize(1024);
+			sprintf2(LogMsgBuf, "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, ShortenDest.c_str());
 			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowData", LogMsgBuf);
 		}
 
@@ -59,8 +60,10 @@ unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *fiel
 				(*dest) = const_cast<char*>(m_Data.at(row).at(i).c_str());
 
 				if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-					char LogMsgBuf[512];
-					sprintf2(LogMsgBuf, "row: '%d', field: \"%s\", data: \"%s\"", row, field, *dest);
+					char LogMsgBuf[1296];
+					string ShortenDest(*dest);
+					ShortenDest.resize(1024);
+					sprintf2(LogMsgBuf, "row: '%d', field: \"%s\", data: \"%s\"", row, field, ShortenDest.c_str());
 					CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowDataByName", LogMsgBuf);
 				}
 
@@ -69,7 +72,7 @@ unsigned short CMySQLResult::GetRowDataByName(unsigned int row, const char *fiel
 		}
 
 		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-			char LogMsgBuf[128];
+			char LogMsgBuf[256];
 			sprintf2(LogMsgBuf, "field not found (\"%s\")", field);
 			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowDataByName", LogMsgBuf);
 		}
