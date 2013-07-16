@@ -14,6 +14,8 @@ boost::lockfree::queue<
 		boost::lockfree::capacity<10000>
 	> CCallback::CallbackQueue;
 
+list<AMX *> CCallback::AmxList;
+
 
 void CCallback::ProcessCallbacks() {
 	CMySQLQuery *Query = NULL;
@@ -24,7 +26,7 @@ void CCallback::ProcessCallbacks() {
 
 			bool PassByReference = Query->Callback->IsInline;
 
-			for (list<AMX *>::iterator a = p_Amx.begin(), end = p_Amx.end(); a != end; ++a) { 
+			for (list<AMX *>::iterator a = AmxList.begin(), end = AmxList.end(); a != end; ++a) { 
 				cell amx_Ret;
 				int amx_Index;
 				cell amx_MemoryAddress = -1;
@@ -87,7 +89,7 @@ void CCallback::ProcessCallbacks() {
 					if(Query->ConnHandle->IsActiveResultSaved() == true)
 						Query->ConnHandle->SetNewResult(NULL);
 
-					if(Query->ConnHandle->GetResult() != NULL)
+					if(Query->ConnHandle->GetResult() != NULL) 
 						delete Result;
 
 					Query->ConnHandle->SetNewResult(NULL);
@@ -102,6 +104,35 @@ void CCallback::ProcessCallbacks() {
 	}
 }
 
+
+
+void CCallback::AddQueryToQueue( CMySQLQuery *cb )
+{
+	CallbackQueue.push(cb);
+}
+
+CMySQLQuery * CCallback::GetNextQuery()
+{
+	CMySQLQuery *NextQuery = NULL;
+	CallbackQueue.pop(NextQuery);
+	return NextQuery;
+}
+
+void CCallback::AddAmx( AMX *amx )
+{
+	AmxList.push_back(amx);
+}
+
+void CCallback::EraseAmx( AMX *amx )
+{
+	for (list<AMX *>::iterator a = AmxList.begin(); a != AmxList.end(); ++a) {
+		if (( *a) == amx) {
+			AmxList.erase(a);
+			break;
+		}
+	}
+}
+
 void CCallback::ClearAll()
 {
 	CMySQLQuery *tmpQuery = NULL;
@@ -111,4 +142,21 @@ void CCallback::ClearAll()
 		delete tmpQuery;
 		tmpQuery = NULL;
 	}
+}
+
+
+CCallback::CCallback( const CCallback &rhs )
+{
+	Parameters = rhs.Parameters;
+	Name = rhs.Name;
+	ParamFormat = rhs.ParamFormat;
+	IsInline = rhs.IsInline;
+}
+
+void CCallback::operator=( const CCallback &rhs )
+{
+	Parameters = rhs.Parameters;
+	Name = rhs.Name;
+	ParamFormat = rhs.ParamFormat;
+	IsInline = rhs.IsInline;
 }

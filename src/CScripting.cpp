@@ -10,7 +10,6 @@
 
 #include "misc.h"
 
-#include <stdarg.h>
 #include "malloc.h"
 #include <cmath>
 
@@ -270,10 +269,7 @@ cell AMX_NATIVE_CALL Native::cache_get_row_int(AMX* amx, cell* params) {
 
 	char *RowData = NULL;
 	Result->GetRowData(params[1], params[2], &RowData);
-	try {
-		ReturnVal = boost::lexical_cast<int>(RowData);
-	}
-	catch(boost::bad_lexical_cast) {
+	if(sscanf(RowData, "%d", &ReturnVal) != 1) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_int", "invalid data type");
 		ReturnVal = 0;
 	}
@@ -306,10 +302,7 @@ cell AMX_NATIVE_CALL Native::cache_get_row_float(AMX* amx, cell* params) {
 
 	char *RowData = NULL;
 	Result->GetRowData(params[1], params[2], &RowData);
-	try {
-		ReturnVal = boost::lexical_cast<float>(RowData);
-	}
-	catch(boost::bad_lexical_cast) {
+	if(sscanf(RowData, "%f", &ReturnVal) != 1) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_row_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
@@ -391,10 +384,7 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_int(AMX* amx, cell* params)
 	}
 
 	Result->GetRowDataByName(params[1], FieldName, &FieldData);
-	try {
-		ReturnVal = boost::lexical_cast<int>(FieldData);
-	}
-	catch(boost::bad_lexical_cast) {
+	if(sscanf(FieldData, "%d", &ReturnVal) != 1) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_int", "invalid data type");
 		ReturnVal = 0;
 	}
@@ -434,10 +424,7 @@ cell AMX_NATIVE_CALL Native::cache_get_field_content_float(AMX* amx, cell* param
 	}
 
 	Result->GetRowDataByName(params[1], FieldName, &FieldData);
-	try {
-		ReturnVal = boost::lexical_cast<float>(FieldData);
-	}
-	catch(boost::bad_lexical_cast) {
+	if(sscanf(FieldData, "%f", &ReturnVal) != 1) {
 		CLog::Get()->LogFunction(LOG_ERROR, "cache_get_field_content_float", "invalid data type");
 		ReturnVal = 0.0f;
 	}
@@ -463,10 +450,9 @@ cell AMX_NATIVE_CALL Native::mysql_connect(AMX* amx, cell* params) {
 		return 0;
 	}
 	
-	int CID = CMySQLHandle::Create(host, user, pass != NULL ? pass : "", db, (size_t)params[5], !!params[6]);
-
-	CMySQLHandle::GetHandle(CID)->Connect();
-	return (cell)CID;
+	CMySQLHandle *Handle = CMySQLHandle::Create(host, user, pass != NULL ? pass : "", db, (size_t)params[5], !!params[6]);
+	Handle->Connect();
+	return (cell)Handle->GetID();
 }
 
 //native mysql_close(connectionHandle = 1, bool:wait = true);

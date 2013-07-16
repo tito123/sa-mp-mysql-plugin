@@ -8,9 +8,6 @@
 #include "CLog.h"
 #include "CMySQLResult.h"
 
-#include "malloc.h"
-#include <cstring>
-
 //#include <vld.h>
 
 #define BOOST_THREAD_DONT_USE_CHRONO
@@ -21,7 +18,6 @@ namespace boost {
 };
 
 
-list<AMX *> p_Amx;
 void **ppPluginData;  
 extern void	*pAMXFunctions;
 extern logprintf_t logprintf;
@@ -57,19 +53,18 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	CLog::Get()->Initialize("mysql_log.txt"); 
 
 
-	logprintf(" >> plugin.mysql: R29 successfully loaded.");
+	logprintf(" >> plugin.mysql: R30 successfully loaded.");
 	return true;
 }
 
 PLUGIN_EXPORT void PLUGIN_CALL Unload() {
 	logprintf("plugin.mysql: Unloading plugin...");
 
-	p_Amx.clear();
-	CLog::Delete();
 	CMySQLQuery::DeleteThreadPool();
 	CCallback::ClearAll();
 	CMySQLHandle::ClearAll();
 	mysql_library_end();
+	CLog::Delete(); //this has to be at the end!
 
 	logprintf("plugin.mysql: Plugin unloaded."); 
 }
@@ -115,17 +110,12 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 };
 
 PLUGIN_EXPORT int PLUGIN_CALL AmxLoad(AMX *amx) {
-	p_Amx.push_back(amx);
+	CCallback::AddAmx(amx);
 	return amx_Register(amx, MySQLNatives, -1);
 }
 
 PLUGIN_EXPORT int PLUGIN_CALL AmxUnload(AMX *amx) {
-	for (list<AMX *>::iterator i = p_Amx.begin(); i != p_Amx.end(); i++) {
-		if (* i == amx) {
-			p_Amx.erase(i);
-			break;
-		}
-	}
+	CCallback::EraseAmx(amx);
 	return AMX_ERR_NONE;
 }
 

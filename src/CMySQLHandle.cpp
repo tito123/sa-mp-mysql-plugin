@@ -5,13 +5,14 @@
 #include "CMySQLHandle.h"
 #include "CMySQLResult.h"
 
-#include <cstring>
-#include "malloc.h"
+//#include <cstring>
+//#include "malloc.h"
 
 
 unordered_map<int, CMySQLHandle *> CMySQLHandle::SQLHandle;
 
-CMySQLHandle::CMySQLHandle(string host, string user, string passw, string db, size_t port, bool reconnect) {
+CMySQLHandle::CMySQLHandle(int id, string host, string user, string passw, string db, size_t port, bool reconnect) {
+	m_CID = id;
 	m_Hostname.assign(host);
 	m_Username.assign(user);
 	m_Password.assign(passw);
@@ -24,7 +25,6 @@ CMySQLHandle::CMySQLHandle(string host, string user, string passw, string db, si
 	m_ActiveResultID = 0;
 	
 	m_Connected = false;
-	m_CID = 0;
 	m_ErrnoVal = 0;
 
 	m_MySQLConnPtr = NULL;
@@ -40,8 +40,9 @@ CMySQLHandle::~CMySQLHandle() {
 	CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::~CMySQLHandle", "deconstructor called");
 }
 
-int CMySQLHandle::Create(string host, string user, string pass, string db, size_t port, bool reconnect) {
-	int ID = -1;
+CMySQLHandle *CMySQLHandle::Create(string host, string user, string pass, string db, size_t port, bool reconnect) {
+	//int ID = -1;
+	CMySQLHandle *handle = NULL;
 	if (SQLHandle.size() > 0) {
 		// Code used for checking duplicate connections.
 		for(unordered_map<int, CMySQLHandle*>::iterator i = SQLHandle.begin(), end = SQLHandle.end(); i != end; ++i) {
@@ -49,16 +50,17 @@ int CMySQLHandle::Create(string host, string user, string pass, string db, size_
 			if (Handle->m_Hostname.compare(host) == 0 && Handle->m_Username.compare(user) == 0 && Handle->m_Database.compare(db) == 0 && Handle->m_Password.compare(pass) == 0) 
 			{
 				CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::Create", "connection already exists");
-				ID = i->first;
+				//ID = i->first;
+				handle = i->second;
 				break;
 			}
 		}
 	}
-	if (ID == -1) {
+	//if (ID == -1) {
+	if(handle == NULL) {
 		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Create", "creating new connection..");
 
-		CMySQLHandle *Handle = new CMySQLHandle(host, user, pass, db, port, reconnect);
-
+		int ID = 1;
 		if(!SQLHandle.empty()) {
 			unordered_map<int, CMySQLHandle*>::iterator itHandle = SQLHandle.begin();
 			do {
@@ -66,12 +68,11 @@ int CMySQLHandle::Create(string host, string user, string pass, string db, size_
 				++itHandle;
 			} while(SQLHandle.find(ID) != SQLHandle.end());
 		}
-		else
-			ID = 1;
-		
 
-		Handle->m_CID = ID;
-		SQLHandle.insert( unordered_map<int, CMySQLHandle*>::value_type(ID, Handle) );
+
+		handle = new CMySQLHandle(ID, host, user, pass, db, port, reconnect);
+
+		SQLHandle.insert( unordered_map<int, CMySQLHandle*>::value_type(ID, handle) );
 
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 			char LogBufMsg[128];
@@ -79,7 +80,7 @@ int CMySQLHandle::Create(string host, string user, string pass, string db, size_
 			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Create", LogBufMsg);
 		}
 	}
-	return ID;
+	return handle;
 }
 
 void CMySQLHandle::Destroy() {
@@ -104,7 +105,7 @@ int CMySQLHandle::Connect(bool threaded) {
 	if(m_MySQLConnPtr == NULL) {
 		m_MySQLConnPtr = mysql_init(NULL);
 		if (m_MySQLConnPtr == NULL)
-			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::ConnectT", "MySQL initialization failed", threaded);
+			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::Connect", "MySQL initialization failed", threaded);
 	}
 	if (!m_Connected && !mysql_real_connect(m_MySQLConnPtr, m_Hostname.c_str(), m_Username.c_str(), m_Password.c_str(), m_Database.c_str(), m_iPort, NULL, NULL)) {
 		int ErrorID = CallErrno();
@@ -112,19 +113,19 @@ int CMySQLHandle::Connect(bool threaded) {
 		if(CLog::Get()->IsLogLevel(LOG_ERROR)) {
 			char LogBufMsg[512];
 			sprintf2(LogBufMsg, "(error #%d) %s", ErrorID, mysql_error(m_MySQLConnPtr));
-			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::ConnectT", LogBufMsg, threaded);
+			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::Connect", LogBufMsg, threaded);
 		}
 
 		ReturnVal = ErrorID;
 		m_Connected = false;
 	} else {
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::ConnectT", "connection was successful", threaded);
+		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Connect", "connection was successful", threaded);
 		my_bool reconnect = m_AutoReconnect;
 		mysql_options(m_MySQLConnPtr, MYSQL_OPT_RECONNECT, &reconnect);
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
 			char LogBufMsg[128];
 			sprintf2(LogBufMsg, "auto-reconnect has been %s", m_AutoReconnect == true ? "enabled" : "disabled");
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::ConnectT", LogBufMsg, threaded);
+			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Connect", LogBufMsg, threaded);
 		}
 		ReturnVal = 0;
 		m_Connected = true;
@@ -139,12 +140,12 @@ void CMySQLHandle::Disconnect(bool threaded) {
 	MySQLMutex.Lock();
 	
 	if (m_MySQLConnPtr == NULL) {
-		CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::DisconnectT", "no connection available", threaded);
+		CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::Disconnect", "no connection available", threaded);
 	} else {
 		mysql_close(m_MySQLConnPtr);
 		m_MySQLConnPtr = NULL;
 		CallErrno();
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::DisconnectT", "connection was closed", threaded);
+		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Disconnect", "connection was closed", threaded);
 	}
 	m_Connected = false;
 	
@@ -239,6 +240,27 @@ void CMySQLHandle::ClearAll()
 		delete i->second;
 	}
 	SQLHandle.clear();
+}
+
+MYSQL * CMySQLHandle::GetMySQLPointer()
+{
+	MySQLMutex.Lock();
+	MYSQL *ptr = m_MySQLConnPtr;
+	MySQLMutex.Unlock();
+	return ptr;
+}
+
+void CMySQLHandle::SetMySQLPointer( MYSQL *mysqlptr )
+{
+	MySQLMutex.Lock();
+	m_MySQLConnPtr = mysqlptr;
+	MySQLMutex.Unlock();
+}
+
+void CMySQLHandle::SetNewResult( CMySQLResult *result )
+{
+	m_ActiveResult = result;
+	m_ActiveResultID = 0;
 }
 
 

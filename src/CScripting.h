@@ -2,7 +2,7 @@
 
 #ifndef INC_CSCRIPTING_H
 #define INC_CSCRIPTING_H
-#define is_string_char(c) (c == 'z' || c == 's' || c == 'e')
+//#define is_string_char(c) (c == 'z' || c == 's' || c == 'e')
 
 #include "main.h"
 #include <fstream>
