@@ -10,12 +10,6 @@
 #include "SDK/plugincommon.h"
 
 
-#include <list>
-
-using std::list;
-extern list<AMX*> p_Amx;
-
-
 typedef void (*logprintf_t)(char* format, ...);
 
 

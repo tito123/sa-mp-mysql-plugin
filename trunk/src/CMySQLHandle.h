@@ -7,16 +7,18 @@
 #include <string>
 #include <boost/unordered_map.hpp>
 
+using std::string;
+using boost::unordered_map;
+
+
 #ifdef _WIN32
-#include <WinSock2.h>
+	#include <WinSock2.h>
 #endif
 #include "mysql_include/mysql.h"
 
+
 #include "CMutex.h"
 
-
-using std::string;
-using boost::unordered_map;
 
 
 #define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
@@ -34,7 +36,7 @@ class CMySQLResult;
 class CMySQLHandle {
 public:
 	
-	CMySQLHandle(string host, string user, string passw, string db, size_t port, bool reconnect);
+	CMySQLHandle(int id, string host, string user, string passw, string db, size_t port, bool reconnect);
 	~CMySQLHandle();
 
 	static bool IsValid(int id);
@@ -43,41 +45,23 @@ public:
 	void Disconnect(bool threaded = false);
 
 
-	static int Create(string host, string user, string pass, string db, size_t port, bool reconnect);
+	static CMySQLHandle *Create(string host, string user, string pass, string db, size_t port, bool reconnect);
 	void Destroy();
-
-	static CMySQLHandle *GetHandle(int cid) {
-		CMySQLHandle *Result = NULL;
-		Result = SQLHandle.at(cid);
-		return Result;
+	static inline CMySQLHandle *GetHandle(int cid) {
+		return SQLHandle.at(cid);
 	}
 
-	MYSQL *GetMySQLPointer() {
-		MySQLMutex.Lock();
-		MYSQL *ptr = m_MySQLConnPtr;
-		MySQLMutex.Unlock();
-		return ptr;
-	}
-
-	void SetMySQLPointer(MYSQL *mysqlptr) {
-		MySQLMutex.Lock();
-		m_MySQLConnPtr = mysqlptr;
-		MySQLMutex.Unlock();
-	}
+	MYSQL *GetMySQLPointer();
+	void SetMySQLPointer(MYSQL *mysqlptr);
 	
-	void SetNewResult(CMySQLResult *result) {
-		m_ActiveResult = result;
-		m_ActiveResultID = 0;
-	}
+	void SetNewResult(CMySQLResult *result);
 	
 	int SaveActiveResult();
 	bool DeleteSavedResult(int resultid);
 	bool SetActiveResult(int resultid);
-
 	inline CMySQLResult *GetResult() const {
 		return m_ActiveResult;
 	}
-
 	inline bool IsActiveResultSaved() const {
 		return m_ActiveResultID > 0 ? true : false;
 	}
@@ -98,16 +82,17 @@ public:
 		return m_ErrnoVal;
 	}
 
-	CMutex MySQLMutex;
 	static void ClearAll();
+
+	CMutex MySQLMutex;
 private:
 	static unordered_map<int, CMySQLHandle *> SQLHandle;
 	
+
 	unordered_map<int, CMySQLResult*> m_SavedResults;
 
 	CMySQLResult *m_ActiveResult;
 	int m_ActiveResultID; //ID of stored result; 0 if not stored yet
-	
 
 	bool m_Connected;
 	bool m_AutoReconnect;

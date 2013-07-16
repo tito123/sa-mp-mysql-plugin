@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R29
+ * MySQL plugin R30
  */
 
 #if defined mysql_included
@@ -10,8 +10,8 @@
 /**
  * Common error codes
  *
- * Client: http://dev.mysql.com/doc/refman/5.0/en/error-messages-client.html
- * Server: http://dev.mysql.com/doc/refman/5.0/en/error-messages-server.html
+ * Client: http://dev.mysql.com/doc/refman/5.1/en/error-messages-client.html
+ * Server: http://dev.mysql.com/doc/refman/5.1/en/error-messages-server.html
  */
 
 #define ER_DBACCESS_DENIED_ERROR 		1044
@@ -41,10 +41,10 @@ enum e_LogType {
 #define mysql_warning_count cache_warning_count
 #define mysql_real_escape_string mysql_escape_string
 
-//cache_get_field
+// cache_get_field
 #define cache_get_field(%0) cache_get_field_name(%0)
 
-// mysql_function_query(conHandle, query[], bool:cache, callback[], format[], {Float,_}:...)
+// mysql_function_query(conHandle, query[], bool:cache, callback[], format[], {Float,_}:...);
 #define mysql_function_query(%0,%1,%2,%3,"%4"%5) mysql_tquery(%0,%1,%3,#%4%5)
 
 // mysql_fetch_row(destination)
@@ -72,6 +72,9 @@ native mysql_errno(connectionHandle = 1);
 native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_tquery(connectionHandle, query[], callback[], format[], {Float,_}:...);
+/*
+native mysql_function_query(conHandle, query[], bool:cache, callback[], format[], {Float,_}:...); //DEPRECATED
+*/
 
 native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
 native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
@@ -101,7 +104,7 @@ native cache_warning_count(connectionHandle = 1);
 
 
 #if defined MYSQL_USE_YINLINE
-	#include "YSI\y_inline.inc"
+	#include <YSI\y_inline.inc>
 	
 	new g_MySQL_InlineData[500][E_CALLBACK_DATA];
 	new g_MySQL_InlineCounter = 0;
