@@ -22,13 +22,7 @@ using boost::unordered_map;
 
 
 #define ERROR_INVALID_CONNECTION_HANDLE(function, id) \
-	do { \
-		if(CLog::Get()->IsLogLevel(LOG_ERROR)) { \
-			char InvConHandleBuf[64]; \
-			sprintf(InvConHandleBuf, "invalid connection handle. (ID = %d).", id); \
-			CLog::Get()->LogFunction(LOG_ERROR, #function, InvConHandleBuf); \
-		} \
-	} while(false)
+	CLog::Get()->LogFunction(LOG_ERROR, false, #function, "invalid connection handle. (ID = %d).", id)
 
 
 class CMySQLResult;

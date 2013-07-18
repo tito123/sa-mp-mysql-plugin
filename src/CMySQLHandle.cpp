@@ -30,14 +30,14 @@ CMySQLHandle::CMySQLHandle(int id, string host, string user, string passw, strin
 	m_MySQLConnPtr = NULL;
 
 
-	CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::CMySQLHandle", "constructor called");
+	CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::CMySQLHandle", "constructor called");
 }
 
 CMySQLHandle::~CMySQLHandle() {
 	for (unordered_map<int, CMySQLResult*>::iterator it = m_SavedResults.begin(), end = m_SavedResults.end(); it != end; it++)
 		delete it->second;
 
-	CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::~CMySQLHandle", "deconstructor called");
+	CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::~CMySQLHandle", "deconstructor called");
 }
 
 CMySQLHandle *CMySQLHandle::Create(string host, string user, string pass, string db, size_t port, bool reconnect) {
@@ -49,7 +49,7 @@ CMySQLHandle *CMySQLHandle::Create(string host, string user, string pass, string
 			CMySQLHandle *Handle = i->second;
 			if (Handle->m_Hostname.compare(host) == 0 && Handle->m_Username.compare(user) == 0 && Handle->m_Database.compare(db) == 0 && Handle->m_Password.compare(pass) == 0) 
 			{
-				CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::Create", "connection already exists");
+				CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLHandle::Create", "connection already exists");
 				//ID = i->first;
 				handle = i->second;
 				break;
@@ -58,10 +58,10 @@ CMySQLHandle *CMySQLHandle::Create(string host, string user, string pass, string
 	}
 	//if (ID == -1) {
 	if(handle == NULL) {
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Create", "creating new connection..");
+		CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::Create", "creating new connection..");
 
 		int ID = 1;
-		if(!SQLHandle.empty()) {
+		if(SQLHandle.size() > 0) {
 			unordered_map<int, CMySQLHandle*>::iterator itHandle = SQLHandle.begin();
 			do {
 				ID = itHandle->first+1;
@@ -73,12 +73,8 @@ CMySQLHandle *CMySQLHandle::Create(string host, string user, string pass, string
 		handle = new CMySQLHandle(ID, host, user, pass, db, port, reconnect);
 
 		SQLHandle.insert( unordered_map<int, CMySQLHandle*>::value_type(ID, handle) );
-
-		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogBufMsg[128];
-			sprintf2(LogBufMsg, "connection created with ID = %d", ID);
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Create", LogBufMsg);
-		}
+		CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::Create", "connection created with ID = %d", ID);
+		
 	}
 	return handle;
 }
@@ -105,28 +101,21 @@ int CMySQLHandle::Connect(bool threaded) {
 	if(m_MySQLConnPtr == NULL) {
 		m_MySQLConnPtr = mysql_init(NULL);
 		if (m_MySQLConnPtr == NULL)
-			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::Connect", "MySQL initialization failed", threaded);
+			CLog::Get()->LogFunction(LOG_ERROR, threaded, "CMySQLHandle::Connect", "MySQL initialization failed");
 	}
 	if (!m_Connected && !mysql_real_connect(m_MySQLConnPtr, m_Hostname.c_str(), m_Username.c_str(), m_Password.c_str(), m_Database.c_str(), m_iPort, NULL, NULL)) {
 		int ErrorID = CallErrno();
-
-		if(CLog::Get()->IsLogLevel(LOG_ERROR)) {
-			char LogBufMsg[512];
-			sprintf2(LogBufMsg, "(error #%d) %s", ErrorID, mysql_error(m_MySQLConnPtr));
-			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::Connect", LogBufMsg, threaded);
-		}
+		
+		CLog::Get()->LogFunction(LOG_ERROR, threaded, "CMySQLHandle::Connect", "(error #%d) %s", ErrorID, mysql_error(m_MySQLConnPtr));
 
 		ReturnVal = ErrorID;
 		m_Connected = false;
 	} else {
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Connect", "connection was successful", threaded);
+		CLog::Get()->LogFunction(LOG_DEBUG, threaded, "CMySQLHandle::Connect", "connection was successful");
 		my_bool reconnect = m_AutoReconnect;
 		mysql_options(m_MySQLConnPtr, MYSQL_OPT_RECONNECT, &reconnect);
-		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogBufMsg[128];
-			sprintf2(LogBufMsg, "auto-reconnect has been %s", m_AutoReconnect == true ? "enabled" : "disabled");
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Connect", LogBufMsg, threaded);
-		}
+		CLog::Get()->LogFunction(LOG_DEBUG, threaded, "CMySQLHandle::Connect", "auto-reconnect has been %s", m_AutoReconnect == true ? "enabled" : "disabled");
+		
 		ReturnVal = 0;
 		m_Connected = true;
 	}
@@ -140,12 +129,12 @@ void CMySQLHandle::Disconnect(bool threaded) {
 	MySQLMutex.Lock();
 	
 	if (m_MySQLConnPtr == NULL) {
-		CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::Disconnect", "no connection available", threaded);
+		CLog::Get()->LogFunction(LOG_WARNING, threaded, "CMySQLHandle::Disconnect", "no connection available");
 	} else {
 		mysql_close(m_MySQLConnPtr);
 		m_MySQLConnPtr = NULL;
 		CallErrno();
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::Disconnect", "connection was closed", threaded);
+		CLog::Get()->LogFunction(LOG_DEBUG, threaded, "CMySQLHandle::Disconnect", "connection was closed");
 	}
 	m_Connected = false;
 	
@@ -155,7 +144,7 @@ void CMySQLHandle::Disconnect(bool threaded) {
 int CMySQLHandle::SaveActiveResult() {
 	if(m_ActiveResult != NULL) {
 		if(m_ActiveResultID != 0) { //if active cache was already saved
-			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::SaveActiveResult", "active cache was already saved");
+			CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLHandle::SaveActiveResult", "active cache was already saved");
 			return m_ActiveResultID; //return the ID of already saved cache
 		}
 		else {
@@ -171,11 +160,7 @@ int CMySQLHandle::SaveActiveResult() {
 			m_ActiveResultID = ID;
 			m_SavedResults.insert( std::map<int, CMySQLResult*>::value_type(ID, m_ActiveResult) );
 			
-			if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-				char LogBufMsg[128];
-				sprintf2(LogBufMsg, "cache saved with ID = %d", ID);
-				CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::SaveActiveResult", LogBufMsg);
-			}
+			CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::SaveActiveResult", "cache saved with ID = %d", ID);
 			return ID; 
 		}
 	}
@@ -193,16 +178,12 @@ bool CMySQLHandle::DeleteSavedResult(int resultid) {
 			}
 			delete ResultHandle;
 			m_SavedResults.erase(resultid);
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::DeleteSavedResult", "result deleted");
+			CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::DeleteSavedResult", "result deleted");
 			return true;
 		}
 	}
 	
-	if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-		char LogBufMsg[128];
-		sprintf2(LogBufMsg, "invalid result ID ('%d')", resultid);
-		CLog::Get()->LogFunction(LOG_WARNING, "CMySQLHandle::DeleteSavedResult", LogBufMsg);
-	}
+	CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLHandle::DeleteSavedResult", "invalid result ID ('%d')", resultid);
 	return false;
 }
 
@@ -217,18 +198,18 @@ bool CMySQLHandle::SetActiveResult(int resultid) {
 				
 				m_ActiveResult = cResult; //set new active cache
 				m_ActiveResultID = resultid; //new active cache was stored previously
-				CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::SetActiveResult", "result is now active");
+				CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::SetActiveResult", "result is now active");
 			}
 		}
 		else
-			CLog::Get()->LogFunction(LOG_ERROR, "CMySQLHandle::SetActiveResult", "result not found");
+			CLog::Get()->LogFunction(LOG_ERROR, false, "CMySQLHandle::SetActiveResult", "result not found");
 	}
 	else {
 		if(m_ActiveResultID == 0) //if cache not saved
 			delete m_ActiveResult; //delete unsaved cache
 		m_ActiveResult = NULL;
 		m_ActiveResultID = 0;
-		CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLHandle::SetActiveResult", "invalid result ID specified, setting active result to zero");
+		CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLHandle::SetActiveResult", "invalid result ID specified, setting active result to zero");
 	}
 	return true;
 }

@@ -12,9 +12,9 @@ boost::threadpool::pool *CMySQLQuery::QueryThreadPool = NULL;
 
 void CMySQLQuery::Execute() {
 	char LogFuncBuf[128];
-	sprintf2(LogFuncBuf, "CMySQLQuery::Execute[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
+	sprintf(LogFuncBuf, "CMySQLQuery::Execute[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
 	
-	CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "starting query execution", true);
+	CLog::Get()->LogFunction(LOG_DEBUG, true, LogFuncBuf, "starting query execution");
 	
 
 	Result = NULL;
@@ -27,7 +27,7 @@ void CMySQLQuery::Execute() {
 		int QueryErrorID = mysql_real_query(ConnPtr, Query.c_str(), Query.length());
 		if (QueryErrorID == 0) {
 			
-			CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "query was successful", true);
+			CLog::Get()->LogFunction(LOG_DEBUG, true, LogFuncBuf, "query was successful");
 
 
 			MYSQL_RES *SQLResult;
@@ -77,12 +77,12 @@ void CMySQLQuery::Execute() {
 				}
 			
 				//forward Query to callback handler
-				CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "data being passed to ProcessCallbacks()", true);
+				CLog::Get()->LogFunction(LOG_DEBUG, true, LogFuncBuf, "data being passed to ProcessCallbacks()");
 			
 				CCallback::AddQueryToQueue(this);
 			}
 			else { //no callback was specified
-				CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "no callback specified, skipping result saving", true);
+				CLog::Get()->LogFunction(LOG_DEBUG, true, LogFuncBuf, "no callback specified, skipping result saving");
 
 				delete Callback;
 				delete this;
@@ -94,19 +94,11 @@ void CMySQLQuery::Execute() {
 			string ErrorString(mysql_error(ConnPtr));
 			ConnHandle->MySQLMutex.Unlock();
 
-				
-			if(CLog::Get()->IsLogLevel(LOG_ERROR)) {
-				char LogMsgBuf[2048];
-				sprintf2(LogMsgBuf, "(error #%d) %s", ErrorID, ErrorString.c_str());
-				CLog::Get()->LogFunction(LOG_ERROR, LogFuncBuf, LogMsgBuf, true);
-			}
+			CLog::Get()->LogFunction(LOG_ERROR, true, LogFuncBuf, "(error #%d) %s", ErrorID, ErrorString.c_str());
+			
 			
 			if(ConnHandle->IsAutoReconnectEnabled() && ErrorID == 2006) { 
-				if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-					char LogFuncBuf[128];
-					sprintf2(LogFuncBuf, "CMySQLQuery::Execute[%s(%s)]", Callback->Name.c_str(), Callback->ParamFormat.c_str());
-					CLog::Get()->LogFunction(LOG_WARNING, LogFuncBuf, "lost connection, reconnecting..", true);
-				}
+				CLog::Get()->LogFunction(LOG_WARNING, true, LogFuncBuf, "lost connection, reconnecting..");
 
 				ConnHandle->MySQLMutex.Lock();
 
@@ -134,7 +126,7 @@ void CMySQLQuery::Execute() {
 			Callback->Name = "OnQueryError";
 			Callback->ParamFormat = "dsssd";
 
-			CLog::Get()->LogFunction(LOG_DEBUG, LogFuncBuf, "error will be triggered in OnQueryError", true);
+			CLog::Get()->LogFunction(LOG_DEBUG, true, LogFuncBuf, "error will be triggered in OnQueryError");
 
 			CCallback::AddQueryToQueue(this);
 		}

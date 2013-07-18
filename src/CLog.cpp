@@ -13,8 +13,6 @@ using std::queue;
 
 
 #ifdef _WIN32
-#define WINVER 0x0501
-#define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include "Windows.h" 
 #define SLEEP(x) { Sleep(x); }
@@ -179,7 +177,7 @@ void CLog::SetLogType(unsigned int logtype)  {
 
 //void CLog::LogFunction(unsigned int status, string funcname, string msg, bool threaded) {}
 
-void CLog::LogFunction(unsigned int status, char *funcname, char *msg, bool threaded) {
+void CLog::LogFunction(unsigned int status, bool threaded, char *funcname, char *msg, ...) {
 	if(m_LogLevel == LOG_NONE)
 		return ;
 	switch(m_LogType) {
@@ -191,8 +189,13 @@ void CLog::LogFunction(unsigned int status, char *funcname, char *msg, bool thre
 				LogData->IsCallback = false;
 				LogData->IsThreaded = threaded;
 				LogData->Status = status;
-				LogData->Msg = (char *)malloc((strlen(msg)+1) * sizeof(char));
-				strcpy(LogData->Msg, msg);
+
+				LogData->Msg = (char *)malloc(2048 * sizeof(char));
+				va_list args;
+				va_start(args, msg);
+				vsprintf(LogData->Msg, msg, args);
+				va_end (args);
+
 				LogData->Name = (char *)malloc((strlen(funcname)+1) * sizeof(char));
 				strcpy(LogData->Name, funcname);
 		
@@ -201,8 +204,15 @@ void CLog::LogFunction(unsigned int status, char *funcname, char *msg, bool thre
 		} break;
 
 		case LOG_TYPE_TEXT: {
-			char *LogText = (char *)malloc((strlen(funcname) + strlen(msg) + 8) * sizeof(char));
-			sprintf2(LogText, "%s - %s", funcname, msg);
+			char MsgBuf[2048];
+			int RealMsgLen=0;
+			va_list args;
+			va_start(args, msg);
+			RealMsgLen = vsprintf(MsgBuf, msg, args);
+			va_end (args);
+			
+			char *LogText = (char *)malloc((strlen(funcname) + RealMsgLen + 8) * sizeof(char));
+			sprintf(LogText, "%s - %s", funcname, MsgBuf);
 			TextLog(status, LogText);
 			free(LogText);
 		} break;
@@ -224,7 +234,7 @@ void CLog::StartCallback(const char *cbname) {
 	}
 	else if(m_LogType == LOG_TYPE_TEXT) {
 		char LogText[64];
-		sprintf2(LogText, "Calling callback \"%s\"..", cbname);
+		sprintf(LogText, "Calling callback \"%s\"..", cbname);
 		TextLog(LOG_DEBUG, LogText);
 	}
 }
@@ -340,103 +350,4 @@ void CLog::CloseTable( string &dest )
 bool CLog::IsCallbackOpenF()
 {
 	return IsCallbackOpen;
-}
-
-
-
-
-static void printchar(char **str, int c)
-{
-	extern int putchar(int c);
-	if (str) {
-		**str = c;
-		++(*str);
-	}
-	else (void)putchar(c);
-}
-
-static int prints(char **out, const char *string, int width, int pad)
-{
-	register int pc = 0;
-
-	for ( ; *string ; ++string) {
-		printchar (out, *string);
-		++pc;
-	}
-	return pc;
-}
-
-/* the following should be enough for 32 bit int */
-#define PRINT_BUF_LEN 12
-
-static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
-{
-	char print_buf[PRINT_BUF_LEN];
-	register char *s;
-	register int t, neg = 0, pc = 0;
-	register unsigned int u = i;
-
-	if (i == 0) {
-		print_buf[0] = '0';
-		print_buf[1] = '\0';
-		return prints (out, print_buf, width, pad);
-	}
-
-	if (sg && b == 10 && i < 0) {
-		neg = 1;
-		u = -i;
-	}
-
-	s = print_buf + PRINT_BUF_LEN-1;
-	*s = '\0';
-
-	while (u) {
-		t = u % b;
-		if( t >= 10 )
-			t += letbase - '0' - 10;
-		*--s = t + '0';
-		u /= b;
-	}
-
-	if (neg) {
-		*--s = '-';
-	}
-
-	return pc + prints (out, s, width, pad);
-}
-
-static int print2(char **out, int *varg)
-{
-	register int width, pad;
-	register int pc = 0;
-	register char *format = (char *)(*varg++);
-
-	for (; *format != 0; ++format) {
-		if (*format == '%') {
-			++format;
-			width = pad = 0;
-			if (*format == '\0') break;
-			if( *format == 's' ) {
-				register char *s = *((char **)varg++);
-				pc += prints (out, s?s:"(null)", width, pad);
-				continue;
-			}
-			if( *format == 'd' ) {
-				pc += printi (out, *varg++, 10, 1, width, pad, 'a');
-				continue;
-			}
-		}
-		else {
-			printchar (out, *format);
-			++pc;
-		}
-	}
-	if (out) **out = '\0';
-	return pc;
-}
-
-int sprintf2(char *out, const char *format, ...)
-{
-	register int *varg = (int *)(&format);
-	return print2(&out, varg);
 }
