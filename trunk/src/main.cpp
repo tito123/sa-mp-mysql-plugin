@@ -38,7 +38,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	}
 	
 
-	unsigned int NumThreads = 8;//boost::thread::hardware_concurrency();
+	unsigned int NumThreads = boost::thread::hardware_concurrency();
 	if(NumThreads > 8)
 		NumThreads = 8;
 	if(NumThreads >= 4)
