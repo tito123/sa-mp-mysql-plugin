@@ -52,13 +52,14 @@ void CCallback::ProcessCallbacks() {
 								}
 							} break;
 
-							case 'f': { 
-								float FParam = (float)atof(Callback->Parameters.top().c_str());
+							case 'f': {
+								float float_val = (float)atof(Callback->Parameters.top().c_str());
+								cell FParam = amx_ftoc(float_val);
 								if(PassByReference == false)
-									amx_Push( (*a), amx_ftoc(FParam));
+									amx_Push( (*a), FParam);
 								else {
 									cell tmpAddress;
-									amx_PushArray( (*a), &tmpAddress, NULL, (cell*)&amx_ftoc(FParam), 1);
+									amx_PushArray( (*a), &tmpAddress, NULL, (cell*)&FParam, 1);
 									if(amx_MemoryAddress < NULL)
 										amx_MemoryAddress = tmpAddress;
 								}
@@ -142,6 +143,7 @@ void CCallback::ClearAll()
 		delete tmpQuery;
 		tmpQuery = NULL;
 	}
+	AmxList.clear();
 }
 
 

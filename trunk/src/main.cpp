@@ -18,7 +18,6 @@ namespace boost {
 };
 
 
-void **ppPluginData;  
 extern void	*pAMXFunctions;
 extern logprintf_t logprintf;
 
@@ -39,8 +38,10 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	}
 	
 
-	unsigned int NumThreads = boost::thread::hardware_concurrency();
-	if(NumThreads > 3)
+	unsigned int NumThreads = 8;//boost::thread::hardware_concurrency();
+	if(NumThreads > 8)
+		NumThreads = 8;
+	if(NumThreads >= 4)
 		NumThreads -= 2;
 	else
 		NumThreads = 1;
@@ -53,7 +54,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	CLog::Get()->Initialize("mysql_log.txt"); 
 
 
-	logprintf(" >> plugin.mysql: R30 successfully loaded.");
+	logprintf(" >> plugin.mysql: R31 successfully loaded.");
 	return true;
 }
 

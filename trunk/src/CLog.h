@@ -19,8 +19,6 @@ using std::string;
 #include "boost/lockfree/queue.hpp"
 
 
-int sprintf2(char *out, const char *format, ...);
-
 enum e_LogLevel {
 	LOG_NONE = 0,
 	LOG_ERROR = 1,
@@ -50,7 +48,7 @@ public:
 	}
 
 	void Initialize(const char *logfile);
-	void LogFunction(unsigned int status, char *funcname, char *msg, bool threaded=false/*, ...*/);
+	void LogFunction(unsigned int status, bool threaded, char *funcname, char *msg, ...);
 	void StartCallback(const char *cbname);
 	void EndCallback();
 

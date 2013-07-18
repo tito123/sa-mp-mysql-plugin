@@ -7,21 +7,10 @@
 void CMySQLResult::GetFieldName(unsigned int idx, char **dest) {
 	if (idx < m_Fields) {
 		(*dest) = const_cast<char*>(m_FieldNames.at(idx).c_str());
-
-		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogMsgBuf[256];
-			sprintf2(LogMsgBuf, "index: '%d', name: \"%s\"", idx, *dest);
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetFieldName", LogMsgBuf);
-		}
+		CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLResult::GetFieldName", "index: '%d', name: \"%s\"", idx, *dest);
 	}
-	else {
-
-		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-			char LogMsgBuf[128];
-			sprintf2(LogMsgBuf, "invalid field index ('%d')", idx);
-			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetFieldName", LogMsgBuf);
-		}
-	}
+	else 
+		CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLResult::GetFieldName", "invalid field index ('%d')", idx);
 }
 
 void CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, char **dest) {
@@ -29,20 +18,13 @@ void CMySQLResult::GetRowData(unsigned int row, unsigned int fieldidx, char **de
 		(*dest) = const_cast<char*>(m_Data.at(row).at(fieldidx).c_str());
 
 		if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-			char LogMsgBuf[1096];
 			string ShortenDest(*dest);
 			ShortenDest.resize(1024);
-			sprintf2(LogMsgBuf, "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, ShortenDest.c_str());
-			CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowData", LogMsgBuf);
+			CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLResult::GetRowData", "row: '%d', field: '%d', data: \"%s\"", row, fieldidx, ShortenDest.c_str());
 		}
 	}
-	else {
-		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-			char LogMsgBuf[128];
-			sprintf2(LogMsgBuf, "invalid row ('%d') or field index ('%d')", row, fieldidx);
-			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowData", LogMsgBuf);
-		}
-	}
+	else 
+		CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLResult::GetRowData", "invalid row ('%d') or field index ('%d')", row, fieldidx);
 }
 
 void CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **dest) {
@@ -52,31 +34,18 @@ void CMySQLResult::GetRowDataByName(unsigned int row, const char *field, char **
 				(*dest) = const_cast<char*>(m_Data.at(row).at(i).c_str());
 
 				if(CLog::Get()->IsLogLevel(LOG_DEBUG)) {
-					char LogMsgBuf[1296];
 					string ShortenDest(*dest);
 					ShortenDest.resize(1024);
-					sprintf2(LogMsgBuf, "row: '%d', field: \"%s\", data: \"%s\"", row, field, ShortenDest.c_str());
-					CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::GetRowDataByName", LogMsgBuf);
+					CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLResult::GetRowDataByName", "row: '%d', field: \"%s\", data: \"%s\"", row, field, ShortenDest.c_str());
 				}
 
 				return ;
 			}
 		}
-
-		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-			char LogMsgBuf[256];
-			sprintf2(LogMsgBuf, "field not found (\"%s\")", field);
-			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowDataByName", LogMsgBuf);
-		}
-
+		CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLResult::GetRowDataByName", "field not found (\"%s\")", field);
 	}
-	else {
-		if(CLog::Get()->IsLogLevel(LOG_WARNING)) {
-			char LogMsgBuf[128];
-			sprintf2(LogMsgBuf, "invalid row index ('%d')", row);
-			CLog::Get()->LogFunction(LOG_WARNING, "CMySQLResult::GetRowDataByName()", LogMsgBuf);
-		}
-	}
+	else 
+		CLog::Get()->LogFunction(LOG_WARNING, false, "CMySQLResult::GetRowDataByName()", "invalid row index ('%d')", row);
 }
 
 CMySQLResult::CMySQLResult() {
@@ -88,5 +57,5 @@ CMySQLResult::CMySQLResult() {
 }
 
 CMySQLResult::~CMySQLResult() {
-	CLog::Get()->LogFunction(LOG_DEBUG, "CMySQLResult::~CMySQLResult()", "deconstructor called");
+	CLog::Get()->LogFunction(LOG_DEBUG, false, "CMySQLResult::~CMySQLResult()", "deconstructor called");
 }
