@@ -1,35 +1,32 @@
 #pragma once
-
 #ifndef INC_CCALLBACK_H
 #define INC_CCALLBACK_H
+
 
 #include <list>
 #include <stack>
 #include <string>
+#include <boost/lockfree/queue.hpp>
 
 using std::list;
 using std::stack;
 using std::string;
-
-#include "boost/lockfree/queue.hpp"
 
 #include "main.h"
 
 
 class CMySQLQuery;
 
+
 class CCallback {
 public:
 
-	static void ProcessCallbacks();
-	
-	static void AddQueryToQueue(CMySQLQuery *cb);
-	static CMySQLQuery *GetNextQuery();
+	void FillCallbackParams(AMX* amx, cell* params, const int ConstParamCount);
 
-	static void AddAmx(AMX *amx);
-	static void EraseAmx(AMX *amx);
-
-	static void ClearAll();
+	CCallback() :
+		IsInline(false)
+	{}
+	~CCallback() {}
 
 
 	stack<string> Parameters;
@@ -37,23 +34,32 @@ public:
 	string ParamFormat;
 	bool IsInline;
 
+	
+	static void ProcessCallbacks();
+	
+	static inline void AddQueryToQueue(CMySQLQuery *cb) {
+		m_CallbackQueue.push(cb);
+	}
+	static inline CMySQLQuery *GetNextQuery() {
+		CMySQLQuery *NextQuery = NULL;
+		m_CallbackQueue.pop(NextQuery);
+		return NextQuery;
+	}
 
-	CCallback() :
-		IsInline(false)
-	{}
-	~CCallback() {}
-	CCallback(const CCallback &rhs);
-	void operator=(const CCallback &rhs);
+	static void AddAmx(AMX *amx);
+	static void EraseAmx(AMX *amx);
+
+	static void ClearAll();
 
 private:
 	static boost::lockfree::queue<
 			CMySQLQuery*, 
 			boost::lockfree::fixed_sized<true>,
 			boost::lockfree::capacity<10000>
-		> CallbackQueue;
+		> m_CallbackQueue;
 
-	static list<AMX *> AmxList;
+	static list<AMX *> m_AmxList;
 };
 
 
-#endif
+#endif // INC_CCALLBACK_H

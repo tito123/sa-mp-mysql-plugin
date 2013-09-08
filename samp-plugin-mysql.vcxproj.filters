@@ -36,8 +36,6 @@
     <ClInclude Include="src\SDK\plugincommon.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="src\CAmxString.h" />
-    <ClInclude Include="src\CMutex.h" />
     <ClInclude Include="src\CScripting.h" />
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\misc.h" />
@@ -52,6 +50,7 @@
     <ClInclude Include="src\boost_lib\date_time\greg_names.hpp">
       <Filter>boost\date_time</Filter>
     </ClInclude>
+    <ClInclude Include="src\COrm.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\SDK\amx\getch.c">
@@ -60,11 +59,9 @@
     <ClCompile Include="src\SDK\amxplugin.cpp">
       <Filter>SDK</Filter>
     </ClCompile>
-    <ClCompile Include="src\CMutex.cpp" />
     <ClCompile Include="src\CScripting.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\misc.cpp" />
-    <ClCompile Include="src\CAmxString.cpp" />
     <ClCompile Include="src\CCallback.cpp" />
     <ClCompile Include="src\CMySQLQuery.cpp" />
     <ClCompile Include="src\CMySQLResult.cpp" />
@@ -100,5 +97,6 @@
     <ClCompile Include="src\boost_lib\date_time\gregorian_types.cpp">
       <Filter>boost\date_time</Filter>
     </ClCompile>
+    <ClCompile Include="src\COrm.cpp" />
   </ItemGroup>
 </Project>
