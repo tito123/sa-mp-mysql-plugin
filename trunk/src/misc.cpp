@@ -2,29 +2,52 @@
 
 #include "misc.h"
 
-#include <cmath>
-#include <complex>
-#include <algorithm>
+#include <cstring>
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/karma.hpp>
 
-#if defined(LINUX) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__OpenBSD__)
-// http://www.jb.man.ac.uk/~slowe/cpp/itoa.html
-char* itoa(int value, char* result, int base) {
-	if (base < 2 || base > 16) {
-		*result = 0;
-		return result;
-	}
-	char* out = result;
-	int quotient = value;
-	do {
-		*out = "0123456789abcdef"[ abs(quotient % base) ];
-		++out;
-		quotient /= base;
-	} while (quotient);
-	if (value < 0 && base == 10) {
-		*out++ = '-';
-	}
-	std::reverse(result, out);
-	*out = 0;
-	return result;
+using namespace boost::spirit;
+
+
+bool ConvertStrToInt(const char *src, int &dest) {
+	const char *FirstIt = src;
+	const char *LastIt = FirstIt+strlen(src);
+	return qi::parse(FirstIt, LastIt, qi::int_, dest);
 }
-#endif
+
+bool ConvertStrToFloat(const char *src, float &dest) {
+	const char *FirstIt(src);
+	const char *LastIt(FirstIt+strlen(src));
+	return qi::parse(FirstIt, LastIt, qi::float_, dest);
+}
+
+
+template<unsigned int B> //B = base/radix
+bool ConvertIntToStr(int src, char *dest) {
+	bool ReturnVal = karma::generate(dest, karma::int_generator<int, B>(), src);
+	*dest = 0;
+	return ReturnVal;
+}
+//instantiate templates
+template bool ConvertIntToStr<16>(int src, char *dest);
+template bool ConvertIntToStr<10>(int src, char *dest);
+template bool ConvertIntToStr<2>(int src, char *dest);
+
+bool ConvertIntToStr(int src, char *dest) {
+	bool ReturnVal = karma::generate(dest, karma::int_generator<int>(), src);
+	*dest = 0;
+	return ReturnVal;
+}
+
+bool ConvertFloatToStr(float src, char *dest) {
+	bool ReturnVal = karma::generate(dest, double_, src);
+	*dest = 0;
+	return ReturnVal;
+}
+
+
+void amx_SetCString(AMX* amx, cell param, const char *str, int len) {
+	cell *destination = NULL;
+	amx_GetAddr(amx, param, &destination);
+	amx_SetString(destination, str, 0, 0, (len > 0) ? len : (strlen(str)+1));
+}

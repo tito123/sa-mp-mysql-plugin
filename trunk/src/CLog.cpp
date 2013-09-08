@@ -1,71 +1,57 @@
 #pragma once
 
-#include "CLog.h"
-
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
+#include <stdarg.h>
 
 #include <string>
-#include <queue>
+#include <boost/thread/thread.hpp>
 
 using std::string;
-using std::queue;
 
 
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include "Windows.h" 
-#define SLEEP(x) { Sleep(x); }
+#ifdef WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#include "Windows.h"
 #else
-#include "pthread.h"
-#include <unistd.h>
-#define SLEEP(x) { usleep(x * 1000); }
+	#include <unistd.h>
+	#include <sys/syscall.h>
 #endif
+
+#include "CLog.h"
+
+
+inline const unsigned long GetCurrentThreadID() { 
+  #ifdef WIN32 
+      return (unsigned long)GetCurrentThreadId(); 
+  #else
+      return (unsigned long)syscall(SYS_gettid); 
+  #endif 
+}
 
 
 CLog *CLog::m_Instance = NULL;
 
+
 void CLog::ProcessLog() {
-	FILE *LogFile = fopen(m_LogFileName, "a");
-	bool ThreadedTable = false;
-	bool FirstInit = true;
-
-	char TableColor[8];
-	char StatusText[16]; 
-
-
+	FILE *LogFile = fopen(m_LogFileName, "w");
 
 	char StartLogTime[32];
 	time_t StartLogTimeRaw;
 	time(&StartLogTimeRaw);
-	tm * StartLogTimeInfo;
-	StartLogTimeInfo = localtime(&StartLogTimeRaw);
+	const tm * StartLogTimeInfo = localtime(&StartLogTimeRaw);
 	strftime(StartLogTime, sizeof(StartLogTime), "%H:%M, %d.%m.%Y", StartLogTimeInfo);
 
-	fprintf(LogFile, "<html>\n<head><title>MySQL Plugin log</title>\n<style>\n" \
-					 "table {border: 1px solid black; border-collapse: collapse; line-height: 23px;}\n" \
-					 "th, td {border: 1px solid black;}\nthead {background-color: #C0C0C0;}\ntbody {text-align: center;}\n" \
-					 "table.left1 {position: relative; left: 36px;}\ntable.left2 {position: relative; left: 72px;}\n" \
-					 "td.time {width: 80px;}\ntd.func {width: 300px;}\ntd.stat {width: 70px;}\ntd.msg {width: 400px;}" \
-					 "</style>\n\t</head>\n\n<body>\n\t<h1>Logging started at %s</h1>\n", StartLogTime);
+	fprintf(LogFile, "<html><head><title>MySQL Plugin log</title><style>table {border: 1px solid black; border-collapse: collapse; line-height: 23px; table-layout: fixed; width: 863px;}th, td {border: 1px solid black; word-wrap: break-word;}thead {background-color: #C0C0C0;}		tbody {text-align: center;}		table.left1 {position: relative; left: 36px;}		table.left2 {position: relative; left: 72px;}		.time {width: 80px;}		.func {width: 200px;}		.stat {width: 75px;}		.msg {width: 400px;}	</style>	<script>		var 			LOG_ERROR = 1,			LOG_WARNING = 2,			LOG_DEBUG = 4;				var			FirstRun = true,			IsCallbackActive = false,			IsTableOpen = false,			IsThreadActive = false;				function StartCB(cbname) {			StartTable(1, 0, cbname);		}		function EndCB() {			EndTable();			IsCallbackActive = false;		}		function StartTable(iscallback, isthreaded, cbname) {			if(IsTableOpen == true || isthreaded != IsThreadActive)				EndTable();						if(iscallback == true) {				document.write(					\"<table class=left2>\" +						\"<th bgcolor=#C0C0C0 >In callback \\\"\"+cbname+\"\\\"</th>\" +					\"</table>\"				);			}						document.write(\"<table\");			if(iscallback == true || (isthreaded != IsThreadActive && isthreaded == false && IsCallbackActive == true) ) {				document.write(\" class=left2\");				IsCallbackActive = true;			}			else if(isthreaded == true) 				document.write(\" class=left1\");						IsThreadActive = isthreaded;			document.write(\">\");						if(FirstRun == true) {				FirstRun = false;				document.write(\"<thead><th class=time>Time</th><th class=func>Function</th><th class=stat>Status</th><th class=msg>Message</th></thead>\");			}			document.write(\"<tbody>\");			IsTableOpen = true;		}				function EndTable() {			document.write(\"</tbody></table>\");			IsTableOpen = false;		}						function Log(time, func, status, msg, isthreaded) {			isthreaded = typeof isthreaded !== 'undefined' ? isthreaded : 0;			if(IsTableOpen == false || isthreaded != IsThreadActive)				StartTable(false, isthreaded, \"\");			var StatColor, StatText;			switch(status) {			case LOG_ERROR:				StatColor = \"RED\";				StatText = \"ERROR\";				break;			case LOG_WARNING:				StatColor = \"#FF9900\";				StatText = \"WARNING\";				break;			case LOG_DEBUG:				StatColor = \"#00DD00\";				StatText = \"OK\";				break;			}			document.write(				\"<tr bgcolor=\"+StatColor+\">\" + 					\"<td class=time>\"+time+\"</td>\" + 					\"<td class=func>\"+func+\"</td>\" + 					\"<td class=stat>\"+StatText+\"</td>\" + 					\"<td class=msg>\"+msg+\"</td>\" + 				\"</tr>\"			);		}	</script></head><body bgcolor=grey>	<h2>Logging started at %s</h2><script>\n", StartLogTime);
 	fflush(LogFile);
 
 	while(m_LogThreadAlive) {
 		
 		m_SLogData *LogData = NULL;
 		while(m_LogQueue.pop(LogData)) {
-			string FileData;
-			FileData.reserve(1000);
-
-			if(LogData->IsCallback == true) {
-				
-				CloseTable(FileData);
-				if(LogData->Status == CB_BEGIN)
-					SetActiveCallback(LogData->Name);
-				else if(LogData->Status == CB_END)
-					CloseCallback(FileData);
-				
-			}
+			
+			if(LogData->IsCallback == true) 
+				fputs(LogData->Msg, LogFile);
 			else {
 				char timeform[16];
 				time_t rawtime;
@@ -73,81 +59,38 @@ void CLog::ProcessLog() {
 				struct tm * timeinfo;
 				timeinfo = localtime(&rawtime);
 				strftime(timeform, sizeof(timeform), "%X", timeinfo);
-			
-				switch(LogData->Status) {
-					case LOG_ERROR:
-						strcpy(TableColor, "RED");
-						strcpy(StatusText, "ERROR");
-						break;
-					case LOG_WARNING:
-						strcpy(TableColor, "#FF9900");
-						strcpy(StatusText, "WARNING");
-						break;
-					case LOG_DEBUG:
-						strcpy(TableColor, "#00DD00");
-						strcpy(StatusText, "OK");
-						break;
+
+				//escape "'s in Msg
+				string LogMsg(LogData->Msg);
+				for(size_t s = 0; s < LogMsg.length(); ++s) {
+					char Char = LogMsg.at(s);
+					if(Char == '\\')
+						LogMsg.replace(s, 1, "\\\\"), s++;
+					else if(Char == '"')
+						LogMsg.replace(s, 1, "\\\""), s++;
+					
 				}
 
-
-				
-				if(LogData->IsThreaded == true) {
-					if(ThreadedTable == false) {
-						CloseTable(FileData);
-						FileData.append("\t<table class=left1>\n\t\t");
-						FileData.append("<tbody>\n\t\t");
-						ThreadedTable = true;
-					}
-				}
-				else if(LogData->IsThreaded == false) {
-					if(ThreadedTable == true) {
-						FileData.append("\t\t</tbody>\n\t</table>\n");
-						ThreadedTable = false;
-						
-						OpenTable(FileData, FirstInit);
-						
-					}
-					else
-						OpenTable(FileData, FirstInit);
-				
-				}
-
-				
-				FileData.append("\t\t\t<tr bgcolor=");
-				FileData.append(TableColor);
-				FileData.append(">\n\t\t\t\t<td class=time>");
-				FileData.append(timeform);
-				FileData.append("</td>\n\t\t\t\t<td class=func>");
-				FileData.append(LogData->Name);
-				FileData.append("</td>\n\t\t\t\t<td class=stat>");
-				FileData.append(StatusText);
-				FileData.append("</td>\n\t\t\t\t<td class=msg>");
-				FileData.append(LogData->Msg);
-				FileData.append("</td>\n\t\t\t</tr>\n");
-
-				
+				fprintf(LogFile, "Log(\"%s\",\"%s\",%d,\"%s\",%d);\n", timeform, LogData->Name, LogData->Status, LogMsg.c_str(), LogData->IsThreaded == false ? 0 : 1);
 			}
-			fputs(FileData.c_str(), LogFile);
+			fputs("</script>", LogFile); //append this tag, or else the JS functions won't work
 			fflush(LogFile);
-			
+			fseek(LogFile, ftell(LogFile)-9, SEEK_SET); //set position before </script>-tag to overwrite it next time
 
 			delete LogData;
-
-			if(FirstInit == true)
-				FirstInit = false;
 		}
-		SLEEP(20);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 		
 	}
-	if(IsTableOpen == true)
-		fputs("\t\t</tbody>\n\t</table>\n", LogFile);
-	fputs("</body>\n\n</html>", LogFile);
+	fputs("</script></body></html>", LogFile);
 	fclose(LogFile);
+	m_LogThreadAlive = true;
 }
 
 void CLog::Initialize(const char *logfile) {
 	strcpy(m_LogFileName, logfile);
 	SetLogType(m_LogType);
+	m_MainThreadID = GetCurrentThreadID();
 }
 
 void CLog::SetLogType(unsigned int logtype)  {
@@ -158,7 +101,8 @@ void CLog::SetLogType(unsigned int logtype)  {
 	m_LogType = logtype;
 	if(logtype == LOG_TYPE_HTML) {
 		if(m_LogThread == NULL)
-			m_LogThread = new boost::thread(boost::bind(&CLog::ProcessLog, this));
+			m_LogThread = new boost::thread(&CLog::ProcessLog, this);
+		m_LogThread->detach();
 
 		string FileName(m_LogFileName);
 		int Pos = FileName.find_first_of(".");
@@ -175,9 +119,8 @@ void CLog::SetLogType(unsigned int logtype)  {
 	}
 }
 
-//void CLog::LogFunction(unsigned int status, string funcname, string msg, bool threaded) {}
 
-void CLog::LogFunction(unsigned int status, bool threaded, char *funcname, char *msg, ...) {
+void CLog::LogFunction(unsigned int status, char *funcname, char *msg, ...) {
 	if(m_LogLevel == LOG_NONE)
 		return ;
 	switch(m_LogType) {
@@ -186,8 +129,7 @@ void CLog::LogFunction(unsigned int status, bool threaded, char *funcname, char 
 		
 				m_SLogData *LogData = new m_SLogData;
 
-				LogData->IsCallback = false;
-				LogData->IsThreaded = threaded;
+				LogData->IsThreaded = (GetCurrentThreadID() != m_MainThreadID);
 				LogData->Status = status;
 
 				LogData->Msg = (char *)malloc(2048 * sizeof(char));
@@ -198,7 +140,7 @@ void CLog::LogFunction(unsigned int status, bool threaded, char *funcname, char 
 
 				LogData->Name = (char *)malloc((strlen(funcname)+1) * sizeof(char));
 				strcpy(LogData->Name, funcname);
-		
+
 				m_LogQueue.push(LogData);
 			}
 		} break;
@@ -225,10 +167,10 @@ void CLog::StartCallback(const char *cbname) {
 		return ;
 	if(m_LogType == LOG_TYPE_HTML) {
 		m_SLogData *LogData = new m_SLogData;
+
 		LogData->IsCallback = true;
-		LogData->Name = (char *)malloc((strlen(cbname)+1) * sizeof(char));
-		strcpy(LogData->Name, cbname);
-		LogData->Status = CB_BEGIN;
+		LogData->Msg = (char *)malloc((strlen(cbname)+20) * sizeof(char));
+		sprintf(LogData->Msg, "StartCB(\"%s\");", cbname);
 
 		m_LogQueue.push(LogData);
 	}
@@ -247,8 +189,10 @@ void CLog::EndCallback() {
 		return ;
 	
 	m_SLogData *LogData = new m_SLogData;
+
 	LogData->IsCallback = true;
-	LogData->Status = CB_END;
+	LogData->Msg = (char *)malloc(9 * sizeof(char));
+	strcpy(LogData->Msg, "EndCB();");
 
 	m_LogQueue.push(LogData);
 }
@@ -257,7 +201,10 @@ void CLog::EndCallback() {
 CLog::~CLog() {
 	if(m_LogThread != NULL) {
 		m_LogThreadAlive = false;
-		m_LogThread->join();
+		
+		while(m_LogThreadAlive == false) 
+			boost::this_thread::sleep(boost::posix_time::milliseconds(5));
+
 		delete m_LogThread;
 	}
 }
@@ -267,14 +214,14 @@ void CLog::TextLog(unsigned int level, char* text) {
         char prefix[16];
         switch(level) {
         case LOG_ERROR:
-                sprintf(prefix, "ERROR");
-                break;
+            sprintf(prefix, "ERROR");
+            break;
         case LOG_WARNING:
-                sprintf(prefix, "WARNING");
-                break;
+            sprintf(prefix, "WARNING");
+            break;
         case LOG_DEBUG:
-                sprintf(prefix, "DEBUG");
-                break;
+            sprintf(prefix, "DEBUG");
+            break;
         }
         char timeform[16];
         time_t rawtime;
@@ -285,69 +232,10 @@ void CLog::TextLog(unsigned int level, char* text) {
 
         FILE *file = fopen(m_LogFileName, "a");
         if(file != NULL) {
-                fprintf(file, "[%s] [%s] %s\n", timeform, prefix, text);
-                fclose(file);
+            fprintf(file, "[%s] [%s] %s\n", timeform, prefix, text);
+            fclose(file);
         }
                 
     }
 }
 
-
-
-void CLog::OpenCallback( string &dest )
-{
-	if(IsCallbackActive == true) {
-		dest.append("\t<table class=left2 style=\"width: 863px;\">\n\t\t<th bgcolor=#C0C0C0 >In callback \"");
-		dest.append(CallbackName);
-		dest.append("\"</th>\n\t</table>\n");
-		IsCallbackOpen = true;
-		IsCallbackActive = false;
-		ToggleHeader = true;
-	}
-}
-
-void CLog::CloseCallback( string &dest )
-{
-	if(IsCallbackActive == false) {
-		CloseTable(dest);
-	}
-	IsCallbackOpen = false;
-	CallbackName.clear();
-}
-
-void CLog::SetActiveCallback( string cbname )
-{
-	CallbackName = cbname;
-	IsCallbackActive = true;
-}
-
-void CLog::OpenTable( string &dest, bool header /*= false*/ )
-{
-	OpenCallback(dest);
-	if(IsTableOpen == false) {
-		dest.append("\t<table");
-		if(IsCallbackOpen == true)
-			dest.append(" class=left2");
-		dest.append(">\n\t\t");
-
-		if( (ToggleHeader && IsCallbackOpen) || header == true) {
-			dest.append("<thead>\n\t\t\t<th>Time</th>\n\t\t\t<th>Function</th>\n\t\t\t<th>Status</th>\n\t\t\t<th>Message</th>\n\t\t</thead>\n\t\t");
-			ToggleHeader = false;
-		}
-		dest.append("<tbody>\n\t");
-		IsTableOpen = true;
-	}
-}
-
-void CLog::CloseTable( string &dest )
-{
-	if(IsTableOpen == true) {
-		dest.append("\t\t</tbody>\n\t</table>\n");
-		IsTableOpen = false;
-	}
-}
-
-bool CLog::IsCallbackOpenF()
-{
-	return IsCallbackOpen;
-}

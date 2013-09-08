@@ -3,51 +3,37 @@
 #define INC_CMYSQLQUERY_H
 
 
-#include <queue>
 #include <string>
-
-#define BOOST_THREAD_DONT_USE_CHRONO
-#include "boost/threadpool.hpp"
-
-using std::queue;
 using std::string;
 
 
-#include "CMySQLHandle.h"
-
-class CCallback;
+class CMySQLHandle;
 class CMySQLResult;
+class CCallback;
+class COrm;
+
 
 class CMySQLQuery {
 public:
+	static CMySQLQuery *Create(const char *query, CMySQLHandle *connhandle, const char *cbname, const char *cbformat, COrm *ormobject = NULL, unsigned short orm_querytype = 0);
+	void Destroy();
 
-	void Execute();
+	void Execute(bool threaded=true);
 
 
-	CMySQLQuery() :
-		ConnHandle(NULL),
-		Result(NULL),
-		Callback(NULL)
-	{ }
-	~CMySQLQuery() {}
-	
 	string Query;
 
 	CMySQLHandle *ConnHandle;
 	CMySQLResult *Result;
 	CCallback *Callback;
 
+	COrm *OrmObject;
+	unsigned short OrmQueryType;
 
-	static inline void ScheduleQuery(CMySQLQuery *query) {
-		QueryThreadPool->schedule(boost::bind(&Execute, query));
-	}
-
-	static void InitializeThreadPool(size_t numthreads);
-	static void DeleteThreadPool();
-	static bool IsThreadPoolInitialized();
-	static void WaitForThreadPool();
 private:
-	static boost::threadpool::pool *QueryThreadPool;
+	CMySQLQuery();
+	~CMySQLQuery();
 };
 
-#endif
+
+#endif // INC_CMYSQLQUERY_H

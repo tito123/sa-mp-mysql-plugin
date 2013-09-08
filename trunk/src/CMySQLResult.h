@@ -3,17 +3,16 @@
 #define INC_CMYSQLRESULT_H
 
 
-#ifdef _WIN32
-	#include <WinSock2.h>
-#endif
-#include "mysql_include/mysql.h"
-
-
 #include <vector>
 #include <string>
+
 using std::vector;
 using std::string;
 
+#ifdef WIN32
+	#include <WinSock2.h>
+#endif
+#include "mysql_include/mysql.h"
 
 
 class CMySQLResult {
@@ -44,7 +43,7 @@ public:
 		return m_AffectedRows;
 	}
 
-	inline unsigned int GetWarningCount() const {
+	inline unsigned int WarningCount() const {
 		return m_WarningCount;
 	}
 
@@ -55,10 +54,12 @@ private:
 	vector< vector<string> > m_Data;
 	vector<string> m_FieldNames;
 
-	my_ulonglong m_InsertID, m_AffectedRows;
+	my_ulonglong 
+		m_InsertID, 
+		m_AffectedRows;
 
 	unsigned int m_WarningCount;
 };
 
 
-#endif
+#endif // INC_CMYSQLRESULT_H
