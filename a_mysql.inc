@@ -1,5 +1,5 @@
 /**
- * MySQL plugin R33
+ * MySQL plugin R34
  */
 
 #if defined mysql_included
@@ -78,22 +78,25 @@ enum VarDatatype {
 
 
 // ORM natives
-native ORM:orm_create(table[], connectionHandle = 1);
+native ORM:orm_create(const table[], connectionHandle = 1);
 native orm_destroy(ORM:id);
 
 native ORM_Error:orm_errno(ORM:id);
 
 native orm_apply_cache(ORM:id, row);
-native orm_select(ORM:id, callback[]="", format[]="", {Float, _}:...);
+native orm_select(ORM:id, callback[] = "", format[] = "", {Float, _}:...);
 /*
 native orm_select_inline(ORM:id, callback:Callback, format[], {Float,_}:...); //y_inline
 */
 native orm_update(ORM:id);
-native orm_insert(ORM:id, callback[]="", format[]="", {Float, _}:...);
+native orm_insert(ORM:id, callback[] = "", format[] = "", {Float, _}:...);
 /*
 native orm_insert_inline(ORM:id, callback:Callback, format[], {Float,_}:...); //y_inline
 */
 native orm_delete(ORM:id, bool:clearvars=true);
+
+native orm_load(ORM:id, callback[] = "", format[] = "", {Float, _}:...) = orm_select;
+native orm_save(ORM:id, callback[] = "", format[] = "", {Float, _}:...);
 
 native orm_addvar(ORM:id, &{Float, _}:var, VarDatatype:datatype, var_maxlen, varname[]);
 /*
@@ -113,18 +116,19 @@ native mysql_log(loglevel = LOG_ERROR | LOG_WARNING, logtype = LOG_TYPE_TEXT);
 native mysql_connect(const host[], const user[], const database[], const password[], port = 3306, bool:autoreconnect = true);
 native mysql_close(connectionHandle = 1, bool:wait = true);
 native mysql_reconnect(connectionHandle = 1);
+native mysql_unprocessed_queries(connectionHandle = 1);
 
 native mysql_errno(connectionHandle = 1);
-native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len=sizeof(destination));
+native mysql_escape_string(const source[], destination[], connectionHandle = 1, max_len = sizeof(destination));
 native mysql_format(connectionHandle, output[], len, format[], {Float,_}:...);
 native mysql_tquery(connectionHandle, query[], callback[], format[], {Float,_}:...);
 /*
 native mysql_tquery_inline(connHandle, query[], callback:Callback, format[], {Float,_}:...); //y_inline
 */
-native Cache:mysql_query(conhandle, query[]);
+native Cache:mysql_query(conhandle, query[], bool:use_cache = true);
 
-native mysql_stat(destination[], connectionHandle = 1, max_len=sizeof(destination));
-native mysql_get_charset(destination[], connectionHandle = 1, max_len=sizeof(destination));
+native mysql_stat(destination[], connectionHandle = 1, max_len = sizeof(destination));
+native mysql_get_charset(destination[], connectionHandle = 1, max_len = sizeof(destination));
 native mysql_set_charset(charset[], connectionHandle = 1);
 
 
@@ -132,13 +136,13 @@ native mysql_set_charset(charset[], connectionHandle = 1);
 native cache_get_data(&num_rows, &num_fields, connectionHandle = 1);
 native cache_get_row_count(connectionHandle = 1);
 native cache_get_field_count(connectionHandle = 1);
-native cache_get_field_name(field_index, destination[], connectionHandle = 1, max_len=sizeof(destination));
+native cache_get_field_name(field_index, destination[], connectionHandle = 1, max_len = sizeof(destination));
 
-native cache_get_row(row, field_idx, destination[], connectionHandle = 1, max_len=sizeof(destination));
+native cache_get_row(row, field_idx, destination[], connectionHandle = 1, max_len = sizeof(destination));
 native cache_get_row_int(row, field_idx, connectionHandle = 1);
 native Float:cache_get_row_float(row, field_idx, connectionHandle = 1);
 
-native cache_get_field_content(row, const field_name[], destination[], connectionHandle = 1, max_len=sizeof(destination));
+native cache_get_field_content(row, const field_name[], destination[], connectionHandle = 1, max_len = sizeof(destination));
 native cache_get_field_content_int(row, const field_name[], connectionHandle = 1);
 native Float:cache_get_field_content_float(row, const field_name[], connectionHandle = 1);
 
@@ -231,7 +235,15 @@ forward OnQueryError(errorid, error[], callback[], query[], connectionHandle);
 #endif
 
 
-// Wrappers for cache functions
+// General wrappers for backward-compatibility
+stock mysql_debug(enabled) {
+	if(enabled)
+		mysql_log(LOG_WARNING | LOG_ERROR | LOG_DEBUG);
+	else
+		mysql_log();
+	return 1;
+}
+#pragma deprecated mysql_ping
 stock mysql_reload(connectionHandle = 1) {
 	mysql_tquery(connectionHandle, "FLUSH PRIVILEGES", "", "");
 	return 1;

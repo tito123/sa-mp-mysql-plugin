@@ -18,6 +18,8 @@ namespace Native {
 	cell AMX_NATIVE_CALL orm_insert(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL orm_delete(AMX* amx, cell* params);
 
+	cell AMX_NATIVE_CALL orm_save(AMX* amx, cell* params);
+
 	cell AMX_NATIVE_CALL orm_apply_cache(AMX* amx, cell* params);
 
 	cell AMX_NATIVE_CALL orm_addvar(AMX* amx, cell* params);
@@ -29,6 +31,7 @@ namespace Native {
 	cell AMX_NATIVE_CALL mysql_connect(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_close(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_reconnect(AMX* amx, cell* params);
+	cell AMX_NATIVE_CALL mysql_unprocessed_queries(AMX* amx, cell* params);
 
 	cell AMX_NATIVE_CALL mysql_errno(AMX* amx, cell* params);
 	cell AMX_NATIVE_CALL mysql_escape_string(AMX* amx, cell* params);

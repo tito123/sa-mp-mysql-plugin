@@ -1,4 +1,5 @@
 #pragma once
+#pragma warning (disable: 4996)
 
 #include <cstdio>
 #include <sstream>
@@ -185,7 +186,6 @@ void COrm::GenerateUpdateQuery(string &dest) {
 
 		switch( Var->Datatype) {
 		case DATATYPE_INT:
-			if(FirstIt == true)
 			sprintf(StrBuf, "%s`%s`='%d'", FirstIt == true ? "" : ",", Var->Name.c_str(), static_cast<int>( *(Var->Address) ));
 			break;
 		case DATATYPE_FLOAT:
@@ -278,6 +278,27 @@ void COrm::GenerateDeleteQuery(string &dest) {
 	dest = StrBuf;
 }
 
+unsigned short COrm::GenerateSaveQuery(string &dest) {
+	bool HasValidKeyValue = false;
+	if(m_KeyVar->Datatype == DATATYPE_STRING) {
+		char *StrVal = (char *)alloca(sizeof(char) * m_KeyVar->MaxLen+1);
+		amx_GetString(StrVal, m_KeyVar->Address, 0, m_KeyVar->MaxLen);
+		HasValidKeyValue = (strlen(StrVal) > 0);
+	}
+	else //DATATYPE_INT
+		HasValidKeyValue = (static_cast<int>( *(m_KeyVar->Address) ) > 0);
+
+	
+	if(HasValidKeyValue == true) { //there is a valid key value -> update
+		GenerateUpdateQuery(dest);
+		return ORM_QUERYTYPE_UPDATE;
+	}
+	else { //no valid key value -> insert
+		GenerateInsertQuery(dest);
+		return ORM_QUERYTYPE_INSERT;
+	}
+}
+
 
 
 void COrm::AddVariable(char *varname, cell *address, unsigned short datatype, size_t len) {
@@ -336,9 +357,8 @@ void COrm::ClearVariableValues() {
 		}
 	}
 	//also clear key variable
-	if(m_KeyVar->Datatype == DATATYPE_STRING) {
+	if(m_KeyVar->Datatype == DATATYPE_STRING)
 		amx_SetString(m_KeyVar->Address, "", 0, 0, m_KeyVar->MaxLen);
-	}
 	else //DATATYPE_INT
 		(*(m_KeyVar->Address)) = 0;
 }
