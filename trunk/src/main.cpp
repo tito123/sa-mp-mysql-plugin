@@ -33,7 +33,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
 	
 	CLog::Get()->Initialize("mysql_log.txt"); 
 
-	logprintf(" >> plugin.mysql: R33 successfully loaded.");
+	logprintf(" >> plugin.mysql: R34 successfully loaded.");
 	return true;
 }
 
@@ -67,6 +67,8 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 	{"orm_insert",						Native::orm_insert},
 	{"orm_delete",						Native::orm_delete},
 
+	{"orm_save",						Native::orm_save},
+
 	{"orm_apply_cache",					Native::orm_apply_cache},
 
 	{"orm_addvar",						Native::orm_addvar},
@@ -77,6 +79,7 @@ const AMX_NATIVE_INFO MySQLNatives[] = {
 	{"mysql_connect",					Native::mysql_connect},
 	{"mysql_close",						Native::mysql_close},
 	{"mysql_reconnect",					Native::mysql_reconnect},
+	{"mysql_unprocessed_queries",		Native::mysql_unprocessed_queries},
 	
 	{"mysql_errno",						Native::mysql_errno},
 	{"mysql_escape_string",				Native::mysql_escape_string},

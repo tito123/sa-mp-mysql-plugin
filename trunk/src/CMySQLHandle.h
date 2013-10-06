@@ -46,6 +46,9 @@ public:
 	inline bool GetAutoReconnect() const {
 		return m_AutoReconnect;
 	}
+	inline bool IsConnected() const {
+		return m_IsConnected;
+	}
 
 	CMySQLConnection(string host, string user, string passw, string db, unsigned int port, bool auto_reconnect)
 		:	m_Host(host),
@@ -103,6 +106,7 @@ public:
 
 	//schedules query
 	inline bool ScheduleQuery(CMySQLQuery *query) {
+		m_QueryCounter++;
 		return m_QueryQueue.push(query);
 	}
 	//process queries
@@ -116,8 +120,13 @@ public:
 	static inline CMySQLHandle *GetHandle(int cid) {
 		return SQLHandle.at(cid);
 	}
+	//returns connection id
 	inline int GetID() const {
 		return m_MyID;
+	}
+	//returns number of unprocessed queries
+	inline unsigned int GetUnprocessedQueryCount() const {
+		return m_QueryCounter;
 	}
 
 
@@ -142,6 +151,7 @@ private:
 	static unordered_map<int, CMySQLHandle *> SQLHandle;
 	
 	boost::atomic<bool> m_QueryThreadRunning;
+	boost::atomic<unsigned int> m_QueryCounter;
 	boost::thread *m_QueryThread;
 	boost::lockfree::spsc_queue <
 			CMySQLQuery *,
@@ -157,7 +167,7 @@ private:
 
 	CMySQLConnection
 		*m_MainConnection, //only used in main thread
-		*m_QueryConnection; //used for unthreaded queries
+		*m_QueryConnection; //used for threaded queries
 };
 
 enum E_DATATYPES 
